@@ -6,10 +6,12 @@ public partial class Form1 : System.Windows.Forms.Form
     DoubleBufferedTableLayoutPanel dynamicTableLayoutPanel = new DoubleBufferedTableLayoutPanel();
     int [] connections;
 
+    private const int EMPTY = 0;
     private const int UP = 1;
     private const int DOWN = 2;
     private const int LEFT = 4;
     private const int RIGHT = 8;
+    private const int OBJECT = 16;
 
     public Form1()
     {
@@ -36,6 +38,10 @@ public partial class Form1 : System.Windows.Forms.Form
         dynamicTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
         connections = new int[55];
+
+        for(int i=0; i<55; i++){
+            connections[i] = EMPTY;
+        }
 
         connections[11*2+2] |= UP | LEFT | DOWN | RIGHT;
         
@@ -134,20 +140,56 @@ public partial class Form1 : System.Windows.Forms.Form
         }
     }
 
+    private bool canConnect(Point cellPos){
+        if(cellPos.Y == 0)
+            return true;
+        if(cellPos.Y >=1 && connections[(cellPos.Y-1)*11] != EMPTY)
+            return true;
+        return false;
+    }
+
+    private void connect(Point cellPos, Point mousePos){
+
+        if(cellPos.X % 2 == 0){
+            int[] heights = dynamicTableLayoutPanel.GetRowHeights();
+
+            //connections[cellPos.Y*11+cellPos.X] = LEFT | RIGHT;
+            if(mousePos.Y<(heights[0]/2)){
+                if(cellPos.Y>0 && cellPos.Y<5 && connections[(cellPos.Y-1)*11+cellPos.X] != EMPTY){
+                    connections[cellPos.Y*11+cellPos.X] |= UP;
+                    connections[(cellPos.Y-1)*11+cellPos.X] |= DOWN;
+                }
+            }else{
+                if(cellPos.Y>=0 && cellPos.Y+1<5 && connections[(cellPos.Y+1)*11+cellPos.X] != EMPTY){
+                    connections[cellPos.Y*11+cellPos.X] |= DOWN;
+                    connections[(cellPos.Y+1)*11+cellPos.X] |= UP;
+                }
+            }
+        }
+        
+         if(cellPos.X % 2 != 0){
+            //if(cellPos.Value.Y == 0 && cellPos.Value.X == 1)
+            for(int i=0; i<cellPos.X; i++)
+                connections[cellPos.Y*11+i] |= LEFT | RIGHT;
+
+            connections[cellPos.Y*11+cellPos.X+1] |= LEFT;
+        }                
+    }
+
     private void tableLayout_MouseClick(object sender, MouseEventArgs e){
 
         var cellPos = GetRowColIndex(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
-        
+        var mouseCellPos = GetCellLocalPos(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
         if(e.Button == MouseButtons.Right)
         {
             if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X < 10) 
             {
                 if(cellPos.Value.X % 2 == 0){
                     //var localMousePos = dynamicTableLayoutPanel.GetControlFromPosition(cellPos.Value.X, cellPos.Value.Y).PointToClient(Cursor.Position);
-                    var mouseCellPos = GetCellLocalPos(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
-                    ContextMenuStrip m = new ContextMenuStrip();
+                    
+                    /*ContextMenuStrip m = new ContextMenuStrip();
                     m.Items.Add(new ToolStripMenuItem("Connection "+mouseCellPos.Value.X+","+mouseCellPos.Value.Y));
-                    m.Show((Control)(sender), e.Location);
+                    m.Show((Control)(sender), e.Location);*/
                 }
                 else{
                     ContextMenuStrip m = new ContextMenuStrip();
@@ -159,14 +201,8 @@ public partial class Form1 : System.Windows.Forms.Form
         else if(e.Button == MouseButtons.Left){
             if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X < 10) 
             {
-                if(cellPos.Value.X % 2 == 0){
-                    //var localMousePos = dynamicTableLayoutPanel.GetControlFromPosition(cellPos.Value.X, cellPos.Value.Y).PointToClient(Cursor.Position);
-                    connections[cellPos.Value.Y*11+cellPos.Value.X] = LEFT | RIGHT;
-                }
-                else{
-                    if(cellPos.Value.Y == 0 && cellPos.Value.X == 1)
-                        connections[cellPos.Value.Y*11+cellPos.Value.X] = LEFT | RIGHT;
-                }
+                if(canConnect(cellPos.Value) && mouseCellPos.HasValue)
+                    connect(cellPos.Value, mouseCellPos.Value);
             }
         }
 
