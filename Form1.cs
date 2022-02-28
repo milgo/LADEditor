@@ -11,7 +11,7 @@ public partial class Form1 : System.Windows.Forms.Form
     private const int DOWN = 2;
     private const int LEFT = 4;
     private const int RIGHT = 8;
-    private const int OBJECT = 16;
+    private const int NOCON = 16;
 
     public Form1()
     {
@@ -42,8 +42,6 @@ public partial class Form1 : System.Windows.Forms.Form
         for(int i=0; i<55; i++){
             connections[i] = EMPTY;
         }
-
-        connections[11*2+2] |= UP | LEFT | DOWN | RIGHT;
         
         dynamicTableLayoutPanel.CellPaint += tableLayoutPanel_CellPaint;
         dynamicTableLayoutPanel.MouseClick += tableLayout_MouseClick;
@@ -109,43 +107,61 @@ public partial class Form1 : System.Windows.Forms.Form
         var topLeft = e.CellBounds.Location;
         var topRight = new Point(e.CellBounds.Right, e.CellBounds.Top);
         var bottomRight= new Point(e.CellBounds.Right, e.CellBounds.Bottom);
-        e.Graphics.DrawLine(Pens.Black, topLeft, topRight);
-        e.Graphics.DrawLine(Pens.Black, topRight, bottomRight);
+
+        Pen p = new Pen(Color.Black);
+        p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+        e.Graphics.DrawLine(p, topLeft, topRight);
+        e.Graphics.DrawLine(p, topRight, bottomRight);
 
         //if (clickedCellPos.HasValue && clickedCellPos.Value.X > 0 && clickedCellPos.Value.X < 10 &&
         if(cellPos.HasValue){//} && cellPos.Value.X == clickedCellPos.Value.X && cellPos.Value.Y == clickedCellPos.Value.Y) {
 
             int conn = connections[cellPos.Value.Y*11+cellPos.Value.X];
-            
+            int cellPosX = (int)cellPos.Value.X;
+            int cellPosY = (int)cellPos.Value.Y;
             if((conn & UP) == UP){
                 e.Graphics.DrawLine(Pens.Blue, 
-                                    new PointF(e.CellBounds.Left+widths[(int)cellPos.Value.X]/2f,e.CellBounds.Top), 
-                                    new PointF(e.CellBounds.Left+widths[(int)cellPos.Value.X]/2f,e.CellBounds.Top+heights[(int)cellPos.Value.Y]/2f));
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f));
             }
             if((conn & DOWN) == DOWN){
                 e.Graphics.DrawLine(Pens.Blue, 
-                                    new PointF(e.CellBounds.Left+widths[(int)cellPos.Value.X]/2f,e.CellBounds.Top+heights[(int)cellPos.Value.Y]/2f), 
-                                    new PointF(e.CellBounds.Left+widths[(int)cellPos.Value.X]/2f,e.CellBounds.Top+heights[(int)cellPos.Value.Y]));
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]));
             }
             if((conn & LEFT) == LEFT){
                 e.Graphics.DrawLine(Pens.Blue, 
-                                    new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[(int)cellPos.Value.Y]/2f), 
-                                    new PointF(e.CellBounds.Left+widths[(int)cellPos.Value.X]/2f,e.CellBounds.Top+heights[(int)cellPos.Value.Y]/2f));
+                                    new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]/2f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f));
             }
             if((conn & RIGHT) == RIGHT){
                 e.Graphics.DrawLine(Pens.Blue, 
-                                    new PointF(e.CellBounds.Left+widths[(int)cellPos.Value.X]/2f,e.CellBounds.Top+heights[(int)cellPos.Value.Y]/2f), 
-                                    new PointF(e.CellBounds.Right,e.CellBounds.Top+heights[(int)cellPos.Value.Y]/2f));
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f), 
+                                    new PointF(e.CellBounds.Right,e.CellBounds.Top+heights[cellPosY]/2f));
+            }
+            if((conn & NOCON) == NOCON){
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]*0.5f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.5f));
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.5f), 
+                                    new PointF(e.CellBounds.Right,e.CellBounds.Top+heights[cellPosY]*0.5f));
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.56f));
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.56f));                    
             }
         }
     }
 
     private bool canConnect(Point cellPos){
-        if(cellPos.Y == 0)
+        /*if(cellPos.Y == 0)
             return true;
         if(cellPos.Y >=1 && connections[(cellPos.Y-1)*11] != EMPTY)
-            return true;
-        return false;
+            return true;*/
+        return true;
     }
 
     private void connect(Point cellPos, Point mousePos){
@@ -153,25 +169,65 @@ public partial class Form1 : System.Windows.Forms.Form
         if(cellPos.X % 2 == 0){
             int[] heights = dynamicTableLayoutPanel.GetRowHeights();
 
-            //connections[cellPos.Y*11+cellPos.X] = LEFT | RIGHT;
-            if(mousePos.Y<(heights[0]/2)){
-                if(cellPos.Y>0 && cellPos.Y<5 && connections[(cellPos.Y-1)*11+cellPos.X] != EMPTY){
-                    connections[cellPos.Y*11+cellPos.X] |= UP;
-                    connections[(cellPos.Y-1)*11+cellPos.X] |= DOWN;
-                }
-            }else{
-                if(cellPos.Y>=0 && cellPos.Y+1<5 && connections[(cellPos.Y+1)*11+cellPos.X] != EMPTY){
-                    connections[cellPos.Y*11+cellPos.X] |= DOWN;
-                    connections[(cellPos.Y+1)*11+cellPos.X] |= UP;
+            if(connections[cellPos.Y*11+cellPos.X] != EMPTY){
+                //connections[cellPos.Y*11+cellPos.X] = LEFT | RIGHT;
+                if(mousePos.Y<(heights[0]/2)){
+
+                    //if(connections[cellPos.Y*11+cellPos.X-1] != EMPTY || connections[cellPos.Y*11+cellPos.X+1] != EMPTY){
+                        Console.WriteLine(cellPos.Y);
+                        for(int i = cellPos.Y-1; i>=0; i--){
+                            
+                            if(connections[i*11+cellPos.X] != EMPTY){
+                                Console.WriteLine(i);
+                                connections[i*11+cellPos.X] |= DOWN;
+                                int j;
+                                for(j = i+1; j<cellPos.Y; j++){
+                                    Console.WriteLine(j);
+                                    connections[j*11+cellPos.X] |= UP | DOWN;
+                                }
+                                connections[j*11+cellPos.X] |= UP;
+                                break;
+                            }
+                        }
+                    //}
+                    /*if(cellPos.Y>0 && cellPos.Y<5 && connections[(cellPos.Y-1)*11+cellPos.X] != EMPTY){
+                        connections[cellPos.Y*11+cellPos.X] |= UP;
+                        connections[(cellPos.Y-1)*11+cellPos.X] |= DOWN;
+                    }*/
+                }else{
+                    /*if(cellPos.Y>=0 && cellPos.Y+1<5 && connections[(cellPos.Y+1)*11+cellPos.X] != EMPTY){
+                        connections[cellPos.Y*11+cellPos.X] |= DOWN;
+                        connections[(cellPos.Y+1)*11+cellPos.X] |= UP;
+                    }*/
+                    Console.WriteLine(cellPos.Y);
+                    for(int i = cellPos.Y+1; i<5/*!!!*/; i++){
+                            
+                        if(connections[i*11+cellPos.X] != EMPTY){
+                            Console.WriteLine(i);
+                            connections[cellPos.Y*11+cellPos.X] |= DOWN;
+                            int j;
+                            for(j = cellPos.Y+1; j<i; j++){
+                                Console.WriteLine(j);
+                                connections[j*11+cellPos.X] |= UP | DOWN;
+                            }
+                            connections[j*11+cellPos.X] |= UP;
+                            break;
+                        }
+                    }    
                 }
             }
         }
         
          if(cellPos.X % 2 != 0){
             //if(cellPos.Value.Y == 0 && cellPos.Value.X == 1)
-            for(int i=0; i<cellPos.X; i++)
-                connections[cellPos.Y*11+i] |= LEFT | RIGHT;
-
+            /*for(int i=0; i<cellPos.X; i++){
+                if(connections[cellPos.Y*11+i] < NOCON){
+                    connections[cellPos.Y*11+i] |= LEFT | RIGHT;
+                }
+                
+            }*/
+            connections[cellPos.Y*11+cellPos.X-1] |= RIGHT;
+            connections[cellPos.Y*11+cellPos.X] = NOCON;
             connections[cellPos.Y*11+cellPos.X+1] |= LEFT;
         }                
     }
