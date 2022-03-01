@@ -399,8 +399,22 @@ public partial class Form1 : System.Windows.Forms.Form
     private void Form1_Paint(object sender, PaintEventArgs e){
         //e.Graphics.DrawImage(bmp, 10,10);
         //base.OnPaint(e);
-        //Point p = dynamicTableLayoutPanel.PointToClient(Cursor.Position);
-        //e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X, p.Y), new PointF(p.X+10f,p.Y+112f));
+
+        if(ladObjectToDrop == CONN){
+
+            Point p = dynamicTableLayoutPanel.PointToClient(Cursor.Position);
+
+            var cellPos = GetRowColIndex(dynamicTableLayoutPanel, p);
+
+            if(cellPos.HasValue && cellPos.Value.X % 2 == 0){
+                e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X+Cursor.Size.Width / 2, p.Y+Cursor.Size.Height / 2), 
+                    new PointF(p.X+Cursor.Size.Width / 2,p.Y+Cursor.Size.Height));
+            }else{
+                e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X, p.Y+Cursor.Size.Height), 
+                    new PointF(p.X+Cursor.Size.Width/2,p.Y+Cursor.Size.Height));
+            }
+            
+        }
     }
 
     /*protected override void OnPaint(PaintEventArgs e){
@@ -409,19 +423,6 @@ public partial class Form1 : System.Windows.Forms.Form
     }*/
 
     private void Form1_MouseMove(object sender, MouseEventArgs e){
-        var cellPos = GetRowColIndex(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
-
-        /*if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X < 10) 
-            {
-                if(cellPos.Value.X % 2 == 0){
-                    if(Cursor.Current != Cursors.Cross)
-                        Cursor.Current = Cursors.Cross;
-                }
-                else{
-                    if(Cursor.Current != Cursors.Arrow)
-                        Cursor.Current = Cursors.Arrow;
-                }
-            }*/
-            
+        dynamicTableLayoutPanel.Invalidate();
     }
 }
