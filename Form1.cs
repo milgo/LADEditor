@@ -13,6 +13,7 @@ public partial class Form1 : System.Windows.Forms.Form
     private const int LEFT = 4;
     private const int RIGHT = 8;
     private const int NOCON = 16;
+    private const int COIL = 32;
 
     public Form1()
     {
@@ -206,6 +207,30 @@ public partial class Form1 : System.Windows.Forms.Form
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.56f));                    
             }
+            if((conn & COIL) == COIL){
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]*0.5f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.5f));
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.5f), 
+                                    new PointF(e.CellBounds.Right,e.CellBounds.Top+heights[cellPosY]*0.5f));
+
+                Rectangle rect = new Rectangle((int)(e.CellBounds.Left+widths[cellPosX]*0.44f), (int)(e.CellBounds.Top+heights[cellPosY]*0.44f),
+                                                (int)(widths[cellPosX]*0.08f),(int)(heights[cellPosY]*0.12f));
+
+                e.Graphics.DrawArc(Pens.Blue, rect, 90f, 180f);
+
+                rect = new Rectangle((int)(e.CellBounds.Left+widths[cellPosX]*0.48f), (int)(e.CellBounds.Top+heights[cellPosY]*0.44f),
+                                                (int)(widths[cellPosX]*0.08f),(int)(heights[cellPosY]*0.12f));    
+
+                e.Graphics.DrawArc(Pens.Blue, rect, 90f, -180f);             
+                /*e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.56f));
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.56f));*/               
+            }
         }
     }
 
@@ -280,7 +305,7 @@ public partial class Form1 : System.Windows.Forms.Form
                 
             }*/
             connections[cellPos.Y*11+cellPos.X-1] |= RIGHT;
-            connections[cellPos.Y*11+cellPos.X] = NOCON;
+            connections[cellPos.Y*11+cellPos.X] = COIL;
             connections[cellPos.Y*11+cellPos.X+1] |= LEFT;
         }                
     }
