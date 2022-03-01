@@ -4,16 +4,22 @@ public partial class Form1 : System.Windows.Forms.Form
 {
 
     DoubleBufferedTableLayoutPanel dynamicTableLayoutPanel = new DoubleBufferedTableLayoutPanel();
+    ToolStripButton toolNoConButton;
+    ToolStripButton toolCoilButton;
+    ToolStripButton toolConButton;
+
     ToolStrip toolStrip;
     int [] connections;
+    int ladObjectToDrop = -1;
 
     private const int EMPTY = 0;
     private const int UP = 1;
     private const int DOWN = 2;
     private const int LEFT = 4;
     private const int RIGHT = 8;
-    private const int NOCON = 16;
-    private const int COIL = 32;
+    private const int CONN = 16;
+    private const int NOCON = 32;
+    private const int COIL = 64;
 
     public Form1()
     {
@@ -24,7 +30,7 @@ public partial class Form1 : System.Windows.Forms.Form
         toolStrip.Size = new Size(32,32);
         toolStrip.Dock = DockStyle.Top;
 
-        ToolStripButton toolNoConButton = new ToolStripButton();
+        toolNoConButton = new ToolStripButton();
         toolNoConButton.Name = "NOCON";
         toolNoConButton.AutoSize = false;
         toolNoConButton.Size = new Size(32,32);
@@ -33,7 +39,7 @@ public partial class Form1 : System.Windows.Forms.Form
         toolNoConButton.ImageScaling = ToolStripItemImageScaling.None;
         toolNoConButton.Click += toolStripMenuItem_Click;
 
-        ToolStripButton toolCoilButton = new ToolStripButton();
+        toolCoilButton = new ToolStripButton();
         toolCoilButton.Name = "COIL";
         toolCoilButton.AutoSize = false;
         toolCoilButton.Size = new Size(32,32);
@@ -42,8 +48,18 @@ public partial class Form1 : System.Windows.Forms.Form
         toolCoilButton.ImageScaling = ToolStripItemImageScaling.None;
         toolCoilButton.Click += toolStripMenuItem_Click;
 
+        toolConButton = new ToolStripButton();
+        toolConButton.Name = "CON";
+        toolConButton.AutoSize = false;
+        toolConButton.Size = new Size(32,32);
+        toolConButton.CheckOnClick = true;
+        toolConButton.Image = Image.FromFile(@"conn.ico");
+        toolConButton.ImageScaling = ToolStripItemImageScaling.None;
+        toolConButton.Click += toolStripMenuItem_Click;
+
         toolStrip.Items.Add(toolNoConButton);
         toolStrip.Items.Add(toolCoilButton);
+        toolStrip.Items.Add(toolConButton);
 
         //MenuStrip menuStrip = new MenuStrip();
         //menuStrip.Dock = DockStyle.Top;
@@ -94,6 +110,13 @@ public partial class Form1 : System.Windows.Forms.Form
     }
 
     private void toolStripMenuItem_Click(object sender, EventArgs e){
+        if(sender == toolNoConButton){
+            ladObjectToDrop = NOCON;
+        }else if(sender == toolCoilButton){
+            ladObjectToDrop = COIL;
+        }else if(sender == toolConButton){
+            ladObjectToDrop = CONN;
+        }
         UncheckOtherToolStripMenuItems((ToolStripItem)sender);
     }
 
@@ -231,6 +254,11 @@ public partial class Form1 : System.Windows.Forms.Form
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.56f));*/               
             }
+            if((conn & CONN) == CONN){
+                e.Graphics.DrawLine(Pens.Blue, 
+                                    new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]*0.5f), 
+                                    new PointF(e.CellBounds.Left+widths[cellPosX],e.CellBounds.Top+heights[cellPosY]*0.5f));
+            }
         }
     }
 
@@ -244,70 +272,86 @@ public partial class Form1 : System.Windows.Forms.Form
 
     private void connect(Point cellPos, Point mousePos){
 
-        if(cellPos.X % 2 == 0){
-            int[] heights = dynamicTableLayoutPanel.GetRowHeights();
-
-            if(connections[cellPos.Y*11+cellPos.X] != EMPTY){
-                //connections[cellPos.Y*11+cellPos.X] = LEFT | RIGHT;
-                if(mousePos.Y<(heights[0]/2)){
-
-                    //if(connections[cellPos.Y*11+cellPos.X-1] != EMPTY || connections[cellPos.Y*11+cellPos.X+1] != EMPTY){
-                        Console.WriteLine(cellPos.Y);
-                        for(int i = cellPos.Y-1; i>=0; i--){
-                            
-                            if(connections[i*11+cellPos.X] != EMPTY){
-                                Console.WriteLine(i);
-                                connections[i*11+cellPos.X] |= DOWN;
-                                int j;
-                                for(j = i+1; j<cellPos.Y; j++){
-                                    Console.WriteLine(j);
-                                    connections[j*11+cellPos.X] |= UP | DOWN;
-                                }
-                                connections[j*11+cellPos.X] |= UP;
-                                break;
-                            }
-                        }
-                    //}
-                    /*if(cellPos.Y>0 && cellPos.Y<5 && connections[(cellPos.Y-1)*11+cellPos.X] != EMPTY){
-                        connections[cellPos.Y*11+cellPos.X] |= UP;
-                        connections[(cellPos.Y-1)*11+cellPos.X] |= DOWN;
-                    }*/
-                }else{
-                    /*if(cellPos.Y>=0 && cellPos.Y+1<5 && connections[(cellPos.Y+1)*11+cellPos.X] != EMPTY){
-                        connections[cellPos.Y*11+cellPos.X] |= DOWN;
-                        connections[(cellPos.Y+1)*11+cellPos.X] |= UP;
-                    }*/
-                    Console.WriteLine(cellPos.Y);
-                    for(int i = cellPos.Y+1; i<5/*!!!*/; i++){
-                            
-                        if(connections[i*11+cellPos.X] != EMPTY){
-                            Console.WriteLine(i);
-                            connections[cellPos.Y*11+cellPos.X] |= DOWN;
-                            int j;
-                            for(j = cellPos.Y+1; j<i; j++){
-                                Console.WriteLine(j);
-                                connections[j*11+cellPos.X] |= UP | DOWN;
-                            }
-                            connections[j*11+cellPos.X] |= UP;
-                            break;
-                        }
-                    }    
+        if(ladObjectToDrop > 0){
+            if(ladObjectToDrop == COIL){//or in table of objects that need to be last in line
+                
+                for(int i=8; i>=0; i--){
+                    if(connections[cellPos.Y*11+i] == EMPTY){
+                         if(i % 2 == 0){
+                             connections[cellPos.Y*11+i] |= RIGHT | LEFT;
+                         }else{
+                             connections[cellPos.Y*11+i] |= CONN;
+                         }
+                    }else{
+                        connections[cellPos.Y*11+i] |= RIGHT;
+                        break;
+                    }
                 }
-            }
-        }
-        
-         if(cellPos.X % 2 != 0){
-            //if(cellPos.Value.Y == 0 && cellPos.Value.X == 1)
-            /*for(int i=0; i<cellPos.X; i++){
-                if(connections[cellPos.Y*11+i] < NOCON){
-                    connections[cellPos.Y*11+i] |= LEFT | RIGHT;
+
+                //connections[cellPos.Y*11+8] |= RIGHT | LEFT;
+                connections[cellPos.Y*11+9] = ladObjectToDrop;
+                connections[cellPos.Y*11+10] |= LEFT;
+            }else{
+                int x = cellPos.X;
+                
+                if(x % 2 == 0){
+                    if(ladObjectToDrop == CONN){
+                        int[] heights = dynamicTableLayoutPanel.GetRowHeights();
+
+                        if(connections[cellPos.Y*11+x] != EMPTY){
+                            if(mousePos.Y<(heights[0]/2)){
+                                    Console.WriteLine(cellPos.Y);
+                                    for(int i = cellPos.Y-1; i>=0; i--){
+                                        
+                                        if(connections[i*11+x] != EMPTY){
+                                            connections[i*11+x] |= DOWN;
+                                            int j;
+                                            for(j = i+1; j<cellPos.Y; j++){
+                                                connections[j*11+x] |= UP | DOWN;
+                                            }
+                                            connections[j*11+x] |= UP;
+                                            break;
+                                        }
+                                    }
+                            }else{
+                                Console.WriteLine(cellPos.Y);
+                                for(int i = cellPos.Y+1; i<5/*!!!*/; i++){
+                                        
+                                    if(connections[i*11+x] != EMPTY){
+                                        Console.WriteLine(i);
+                                        connections[cellPos.Y*11+x] |= DOWN;
+                                        int j;
+                                        for(j = cellPos.Y+1; j<i; j++){
+                                            Console.WriteLine(j);
+                                            connections[j*11+x] |= UP | DOWN;
+                                        }
+                                        connections[j*11+x] |= UP;
+                                        break;
+                                    }
+                                }    
+                            }
+                        }
+                        return;
+                    }
                 }
                 
-            }*/
-            connections[cellPos.Y*11+cellPos.X-1] |= RIGHT;
-            connections[cellPos.Y*11+cellPos.X] = COIL;
-            connections[cellPos.Y*11+cellPos.X+1] |= LEFT;
-        }                
+                if(cellPos.X % 2 == 0){
+                    x -=1;
+                }
+
+                if(connections[cellPos.Y*11+x] == EMPTY || connections[cellPos.Y*11+x] == CONN){
+
+                    if(ladObjectToDrop == CONN && connections[cellPos.Y*11+x-1] == EMPTY && connections[cellPos.Y*11+x+1] == EMPTY){
+                        return;
+                    }
+
+                    connections[cellPos.Y*11+x-1] |= RIGHT;
+                    connections[cellPos.Y*11+x+1] |= LEFT;
+                    connections[cellPos.Y*11+x] = ladObjectToDrop;
+                }
+
+            }
+        }
     }
 
     private void tableLayout_MouseClick(object sender, MouseEventArgs e){
@@ -326,14 +370,14 @@ public partial class Form1 : System.Windows.Forms.Form
                     m.Show((Control)(sender), e.Location);*/
                 }
                 else{
-                    ContextMenuStrip m = new ContextMenuStrip();
+                    /*ContextMenuStrip m = new ContextMenuStrip();
                     m.Items.Add(new ToolStripMenuItem("Ladder"));
-                    m.Show((Control)(sender), e.Location);
+                    m.Show((Control)(sender), e.Location);*/
                 }
             }
         }
         else if(e.Button == MouseButtons.Left){
-            if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X < 10) 
+            if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X <= 10) 
             {
                 if(canConnect(cellPos.Value) && mouseCellPos.HasValue)
                     connect(cellPos.Value, mouseCellPos.Value);
