@@ -4,6 +4,7 @@ public partial class Form1 : System.Windows.Forms.Form
 {
 
     DoubleBufferedTableLayoutPanel dynamicTableLayoutPanel = new DoubleBufferedTableLayoutPanel();
+    ToolStrip toolStrip;
     int [] connections;
 
     private const int EMPTY = 0;
@@ -16,6 +17,37 @@ public partial class Form1 : System.Windows.Forms.Form
     public Form1()
     {
         InitializeComponent();
+
+        toolStrip = new ToolStrip();
+        toolStrip.AutoSize = false;
+        toolStrip.Size = new Size(32,32);
+        toolStrip.Dock = DockStyle.Top;
+
+        ToolStripButton toolNoConButton = new ToolStripButton();
+        toolNoConButton.Name = "NOCON";
+        toolNoConButton.AutoSize = false;
+        toolNoConButton.Size = new Size(32,32);
+        toolNoConButton.CheckOnClick = true;
+        toolNoConButton.Image = Image.FromFile(@"nocon.ico");
+        toolNoConButton.ImageScaling = ToolStripItemImageScaling.None;
+        toolNoConButton.Click += toolStripMenuItem_Click;
+
+        ToolStripButton toolCoilButton = new ToolStripButton();
+        toolCoilButton.Name = "COIL";
+        toolCoilButton.AutoSize = false;
+        toolCoilButton.Size = new Size(32,32);
+        toolCoilButton.CheckOnClick = true;
+        toolCoilButton.Image = Image.FromFile(@"coil.ico");
+        toolCoilButton.ImageScaling = ToolStripItemImageScaling.None;
+        toolCoilButton.Click += toolStripMenuItem_Click;
+
+        toolStrip.Items.Add(toolNoConButton);
+        toolStrip.Items.Add(toolCoilButton);
+
+        //MenuStrip menuStrip = new MenuStrip();
+        //menuStrip.Dock = DockStyle.Top;
+        this.Controls.Add(toolStrip);
+        //menuStrip.Items.Add(item);
 
         dynamicTableLayoutPanel.Dock = DockStyle.Fill;
         dynamicTableLayoutPanel.ColumnCount = 11;
@@ -42,15 +74,36 @@ public partial class Form1 : System.Windows.Forms.Form
         for(int i=0; i<55; i++){
             connections[i] = EMPTY;
         }
+
+        for(int i=0; i<5; i++){
+            connections[i*11] = UP | DOWN;
+            connections[i*11+10] = UP | DOWN;
+        }
+        
         
         dynamicTableLayoutPanel.CellPaint += tableLayoutPanel_CellPaint;
         dynamicTableLayoutPanel.MouseClick += tableLayout_MouseClick;
         this.Controls.Add(dynamicTableLayoutPanel);
+        dynamicTableLayoutPanel.BringToFront();
         dynamicTableLayoutPanel.MouseMove += Form1_MouseMove;
 
         dynamicTableLayoutPanel.Paint += Form1_Paint;
 
         this.BackColor = Color.White;
+    }
+
+    private void toolStripMenuItem_Click(object sender, EventArgs e){
+        UncheckOtherToolStripMenuItems((ToolStripItem)sender);
+    }
+
+    private void UncheckOtherToolStripMenuItems(object selectedMenuItem){
+        foreach(ToolStripItem tb in toolStrip.Items){
+            if(tb is ToolStripButton){
+                ToolStripButton tbs = ((ToolStripButton)tb);
+                if(tbs != ((ToolStripButton)selectedMenuItem))
+                    tbs.Checked = false;
+            }
+        }
     }
 
     Point? GetRowColIndex(TableLayoutPanel tlp, Point point)
