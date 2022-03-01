@@ -12,6 +12,8 @@ public partial class Form1 : System.Windows.Forms.Form
     int [] connections;
     int ladObjectToDrop = -1;
 
+    Point mouseClickedPos;
+
     private const int EMPTY = 0;
     private const int UP = 1;
     private const int DOWN = 2;
@@ -183,12 +185,17 @@ public partial class Form1 : System.Windows.Forms.Form
         var cellPos = GetRowColIndex(dynamicTableLayoutPanel, e.CellBounds.Location);
         var topLeft = e.CellBounds.Location;
         var topRight = new Point(e.CellBounds.Right, e.CellBounds.Top);
-        var bottomRight= new Point(e.CellBounds.Right, e.CellBounds.Bottom);
-
+        var bottomRight = new Point(e.CellBounds.Right, e.CellBounds.Bottom);
+        var bottomLeft = new Point(e.CellBounds.Left, e.CellBounds.Bottom);
         Pen p = new Pen(Color.Black);
         p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
-        e.Graphics.DrawLine(p, topLeft, topRight);
-        e.Graphics.DrawLine(p, topRight, bottomRight);
+
+        if(e.CellBounds.Contains(mouseClickedPos)){
+            e.Graphics.DrawLine(p, topLeft, topRight);
+            e.Graphics.DrawLine(p, topRight, bottomRight);
+            e.Graphics.DrawLine(p, bottomRight, bottomLeft);
+            e.Graphics.DrawLine(p, bottomLeft, topLeft);
+        }
 
         //if (clickedCellPos.HasValue && clickedCellPos.Value.X > 0 && clickedCellPos.Value.X < 10 &&
         if(cellPos.HasValue){//} && cellPos.Value.X == clickedCellPos.Value.X && cellPos.Value.Y == clickedCellPos.Value.Y) {
@@ -356,7 +363,9 @@ public partial class Form1 : System.Windows.Forms.Form
 
     private void tableLayout_MouseClick(object sender, MouseEventArgs e){
 
-        var cellPos = GetRowColIndex(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
+        mouseClickedPos = dynamicTableLayoutPanel.PointToClient(Cursor.Position);
+        var cellPos = GetRowColIndex(dynamicTableLayoutPanel, mouseClickedPos);
+        
         var mouseCellPos = GetCellLocalPos(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
         if(e.Button == MouseButtons.Right)
         {
