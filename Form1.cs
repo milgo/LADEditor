@@ -155,6 +155,37 @@ public partial class Form1 : System.Windows.Forms.Form
         return new Point(col, row);
     }
 
+    Rectangle? GetCellConnectionBounds(TableLayoutPanel tlp, Point point)
+    {
+        if (point.X > tlp.Width || point.Y > tlp.Height)
+            return null;
+
+        int w = tlp.Width;
+        int h = tlp.Height;
+        int[] widths = tlp.GetColumnWidths();
+
+        int i;
+        for (i = widths.Length - 1; i >= 0 && point.X < w; i--)
+            w -= widths[i];
+        int col = i + 1;
+
+        int[] heights = tlp.GetRowHeights();
+        for (i = heights.Length - 1; i >= 0 && point.Y < h; i--)
+            h -= heights[i];
+
+        int row = i + 1;
+
+        if(col % 2 == 0){
+            if(col>0)
+                return new Rectangle(w-widths[col-1], h, widths[col]+widths[col-1], heights[row]);
+        }
+        else{
+            return new Rectangle(w, h, widths[col]+widths[col+1], heights[row]);
+        }
+
+        return null;
+    }
+
     Point? GetCellLocalPos(TableLayoutPanel tlp, Point point)
     {
         if (point.X > tlp.Width || point.Y > tlp.Height)
@@ -183,19 +214,23 @@ public partial class Form1 : System.Windows.Forms.Form
         int[] heights = dynamicTableLayoutPanel.GetRowHeights();
         //var clickedCellPos = GetRowColIndex(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
         var cellPos = GetRowColIndex(dynamicTableLayoutPanel, e.CellBounds.Location);
-        var topLeft = e.CellBounds.Location;
+        /*var topLeft = e.CellBounds.Location;
         var topRight = new Point(e.CellBounds.Right, e.CellBounds.Top);
         var bottomRight = new Point(e.CellBounds.Right, e.CellBounds.Bottom);
         var bottomLeft = new Point(e.CellBounds.Left, e.CellBounds.Bottom);
         Pen p = new Pen(Color.Black);
-        p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+        p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;*/
 
         if(e.CellBounds.Contains(mouseClickedPos)){
-            e.Graphics.DrawLine(p, topLeft, topRight);
-            e.Graphics.DrawLine(p, topRight, bottomRight);
-            e.Graphics.DrawLine(p, bottomRight, bottomLeft);
-            e.Graphics.DrawLine(p, bottomLeft, topLeft);
+            var rect = GetCellConnectionBounds(dynamicTableLayoutPanel, e.CellBounds.Location);
+            if(rect.HasValue){
+                Pen p = new Pen(Color.Black);
+                p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                e.Graphics.DrawRectangle(p, rect.Value);
+            }
         }
+
+        
 
         //if (clickedCellPos.HasValue && clickedCellPos.Value.X > 0 && clickedCellPos.Value.X < 10 &&
         if(cellPos.HasValue){//} && cellPos.Value.X == clickedCellPos.Value.X && cellPos.Value.Y == clickedCellPos.Value.Y) {
@@ -365,6 +400,11 @@ public partial class Form1 : System.Windows.Forms.Form
 
         mouseClickedPos = dynamicTableLayoutPanel.PointToClient(Cursor.Position);
         var cellPos = GetRowColIndex(dynamicTableLayoutPanel, mouseClickedPos);
+
+        int[] widths = dynamicTableLayoutPanel.GetColumnWidths();
+        int[] heights = dynamicTableLayoutPanel.GetRowHeights();
+
+        //draw clicked cell dashed
         
         var mouseCellPos = GetCellLocalPos(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
         if(e.Button == MouseButtons.Right)
