@@ -445,13 +445,30 @@ public partial class Form1 : System.Windows.Forms.Form
             Point p = dynamicTableLayoutPanel.PointToClient(Cursor.Position);
 
             var cellPos = GetRowColIndex(dynamicTableLayoutPanel, p);
+            var mouseCellPos = GetCellLocalPos(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
+            int[] heights = dynamicTableLayoutPanel.GetRowHeights();
 
-            if(cellPos.HasValue && cellPos.Value.X % 2 == 0){
-                e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X+Cursor.Size.Width / 2, p.Y+Cursor.Size.Height / 2), 
-                    new PointF(p.X+Cursor.Size.Width / 2,p.Y+Cursor.Size.Height));
-            }else{
-                e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X, p.Y+Cursor.Size.Height), 
-                    new PointF(p.X+Cursor.Size.Width/2,p.Y+Cursor.Size.Height));
+            if(cellPos.HasValue && cellPos.Value.X-1>=0)
+            {
+                if(cellPos.Value.X % 2 == 0){
+                    if(mouseCellPos.HasValue && connections[cellPos.Value.Y*11+cellPos.Value.X-1] != EMPTY){
+                        bool isConnection = false;
+                        if(mouseCellPos.Value.Y<(heights[0]/2)){
+                            for(int i = cellPos.Value.Y-1; i>=0; i--)
+                                if(connections[i*11+cellPos.Value.X] != EMPTY){isConnection=true;break;}
+                        }else{
+                            for(int i = cellPos.Value.Y+1; i<5/*!!!*/; i++)
+                                if(connections[i*11+cellPos.Value.X] != EMPTY){isConnection=true;break;}
+                        }
+
+                        if(isConnection)
+                            e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X+Cursor.Size.Width / 2, p.Y+Cursor.Size.Height / 2), 
+                                new PointF(p.X+Cursor.Size.Width / 2,p.Y+Cursor.Size.Height));
+                    }
+                }else if(cellPos.Value.X % 2 != 0 && connections[cellPos.Value.Y*11+cellPos.Value.X-1] != EMPTY){
+                    e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X, p.Y+Cursor.Size.Height), 
+                        new PointF(p.X+Cursor.Size.Width/2,p.Y+Cursor.Size.Height));
+                }
             }
             
         }
