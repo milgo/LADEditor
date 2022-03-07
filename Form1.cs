@@ -7,6 +7,7 @@ public partial class Form1 : System.Windows.Forms.Form
     ToolStripButton toolNoConButton;
     ToolStripButton toolCoilButton;
     ToolStripButton toolConButton;
+    ToolStripButton toolDelButton;
 
     ToolStrip toolStrip;
     int [] connections;
@@ -59,9 +60,19 @@ public partial class Form1 : System.Windows.Forms.Form
         toolConButton.ImageScaling = ToolStripItemImageScaling.None;
         toolConButton.Click += toolStripMenuItem_Click;
 
+        toolDelButton = new ToolStripButton();
+        toolDelButton.Name = "DEL";
+        toolDelButton.AutoSize = false;
+        toolDelButton.Size = new Size(32,32);
+        toolDelButton.CheckOnClick = true;
+        toolDelButton.Image = Image.FromFile(@"del.ico");
+        toolDelButton.ImageScaling = ToolStripItemImageScaling.None;
+        toolDelButton.Click += toolStripMenuItem_Click;
+
         toolStrip.Items.Add(toolNoConButton);
         toolStrip.Items.Add(toolCoilButton);
         toolStrip.Items.Add(toolConButton);
+        toolStrip.Items.Add(toolDelButton);
 
         //MenuStrip menuStrip = new MenuStrip();
         //menuStrip.Dock = DockStyle.Top;
@@ -118,6 +129,9 @@ public partial class Form1 : System.Windows.Forms.Form
             ladObjectToDrop = COIL;
         }else if(sender == toolConButton){
             ladObjectToDrop = CONN;
+        }
+        else if(sender == toolDelButton){
+            ladObjectToDrop = EMPTY;
         }
         UncheckOtherToolStripMenuItems((ToolStripItem)sender);
     }
@@ -312,9 +326,61 @@ public partial class Form1 : System.Windows.Forms.Form
         return true;
     }
 
+    private void connectAbove(int x, int y1, int y2){
+        if(y2<0)return;
+        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT))  && y1 != y2){
+            connections[y2*11+x] |= DOWN;
+            return;
+        }
+        if(y1 != y2){
+            connections[y2*11+x] |= UP;
+            connections[y2*11+x] |= DOWN;
+        }else{
+            connections[y2*11+x] |= UP;
+        }
+        connectAbove(x, y1, y2-1);
+    }
+
+    private void connectBelow(int x, int y1, int y2){
+        if(y2>(5-1))return;
+        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT))  && y1 != y2){
+            connections[y2*11+x] |= UP;
+            return;
+        }
+        if(y1 != y2){
+            connections[y2*11+x] |= UP;
+            connections[y2*11+x] |= DOWN;
+        }else{
+            connections[y2*11+x] |= DOWN;
+        }
+        connectBelow(x, y1, y2+1);
+    }
+
+    private void disconnectAbove(int x, int y1, int y2){
+        if(y2<0)return;
+        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT))  && y1 != y2){
+            connections[y2*11+x] &= ~DOWN;
+            return;
+        }
+        connections[y2*11+x] &= ~UP;
+        connections[y2*11+x] &= ~DOWN;
+        disconnectAbove(x, y1, y2-1);
+    }
+
+    private void disconnectBelow(int x, int y1, int y2){
+        if(y2>(5-1))return;
+        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT)) && y1 != y2){
+            connections[y2*11+x] &= ~UP;
+            return;
+        }
+        connections[y2*11+x] &= ~UP;
+        connections[y2*11+x] &= ~DOWN;
+        disconnectBelow(x, y1, y2+1);
+    }
+
     private void connect(Point cellPos, Point mousePos){
 
-        if(ladObjectToDrop > 0){
+        if(ladObjectToDrop >= 0){
             if(ladObjectToDrop == COIL){//or in table of objects that need to be last in line
                 
                 for(int i=8; i>=0; i--){
@@ -329,51 +395,26 @@ public partial class Form1 : System.Windows.Forms.Form
                         break;
                     }
                 }
-
-                //connections[cellPos.Y*11+8] |= RIGHT | LEFT;
+                
                 connections[cellPos.Y*11+9] = ladObjectToDrop;
                 connections[cellPos.Y*11+10] |= LEFT;
             }else{
                 int x = cellPos.X;
-                
+                int[] heights = dynamicTableLayoutPanel.GetRowHeights();
+
                 if(x % 2 == 0){
                     if(ladObjectToDrop == CONN){
-                        int[] heights = dynamicTableLayoutPanel.GetRowHeights();
-
                         if(connections[cellPos.Y*11+x] != EMPTY){
                             if(mousePos.Y<(heights[0]/2)){
-                                    Console.WriteLine(cellPos.Y);
-                                    for(int i = cellPos.Y-1; i>=0; i--){
-                                        
-                                        if(connections[i*11+x] != EMPTY){
-                                            connections[i*11+x] |= DOWN;
-                                            int j;
-                                            for(j = i+1; j<cellPos.Y; j++){
-                                                connections[j*11+x] |= UP | DOWN;
-                                            }
-                                            connections[j*11+x] |= UP;
-                                            break;
-                                        }
-                                    }
+                                connectAbove(cellPos.X, cellPos.Y, cellPos.Y);
                             }else{
-                                Console.WriteLine(cellPos.Y);
-                                for(int i = cellPos.Y+1; i<5/*!!!*/; i++){
-                                        
-                                    if(connections[i*11+x] != EMPTY){
-                                        Console.WriteLine(i);
-                                        connections[cellPos.Y*11+x] |= DOWN;
-                                        int j;
-                                        for(j = cellPos.Y+1; j<i; j++){
-                                            Console.WriteLine(j);
-                                            connections[j*11+x] |= UP | DOWN;
-                                        }
-                                        connections[j*11+x] |= UP;
-                                        break;
-                                    }
-                                }    
+                                connectBelow(cellPos.X, cellPos.Y, cellPos.Y);
                             }
                         }
                         return;
+                    }else if(ladObjectToDrop == EMPTY){
+                        disconnectAbove(cellPos.X, cellPos.Y, cellPos.Y);
+                        disconnectBelow(cellPos.X, cellPos.Y, cellPos.Y);
                     }
                 }
                 
@@ -381,15 +422,20 @@ public partial class Form1 : System.Windows.Forms.Form
                     x -=1;
                 }
 
-                if(connections[cellPos.Y*11+x] == EMPTY || connections[cellPos.Y*11+x] == CONN){
+                if((connections[cellPos.Y*11+x] == EMPTY || connections[cellPos.Y*11+x] == CONN) && ladObjectToDrop != EMPTY){
 
                     if(ladObjectToDrop == CONN && connections[cellPos.Y*11+x-1] == EMPTY && connections[cellPos.Y*11+x+1] == EMPTY){
                         return;
                     }
-
                     connections[cellPos.Y*11+x-1] |= RIGHT;
                     connections[cellPos.Y*11+x+1] |= LEFT;
                     connections[cellPos.Y*11+x] = ladObjectToDrop;
+                }
+
+                if(ladObjectToDrop == EMPTY && cellPos.X % 2 != 0){
+                    connections[cellPos.Y*11+cellPos.X-1] &= ~RIGHT;
+                    connections[cellPos.Y*11+cellPos.X+1] &= ~LEFT;
+                    connections[cellPos.Y*11+cellPos.X] = EMPTY;
                 }
 
             }
