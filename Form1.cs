@@ -24,6 +24,9 @@ public partial class Form1 : System.Windows.Forms.Form
     private const int NOCON = 32;
     private const int COIL = 64;
 
+    private const int ROWS = 8;
+    private const int COLS = 15;//must be odd
+
     public Form1()
     {
         InitializeComponent();
@@ -80,34 +83,29 @@ public partial class Form1 : System.Windows.Forms.Form
         //menuStrip.Items.Add(item);
 
         dynamicTableLayoutPanel.Dock = DockStyle.Fill;
-        dynamicTableLayoutPanel.ColumnCount = 11;
-        dynamicTableLayoutPanel.RowCount = 5;
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 2.5f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 2.5f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 2.5f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 2.5f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 2.5f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));
-        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 2.5f));
-        dynamicTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
-        dynamicTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
-        dynamicTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
-        dynamicTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
-        dynamicTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+        dynamicTableLayoutPanel.ColumnCount = COLS;
+        dynamicTableLayoutPanel.RowCount = ROWS;
 
-        connections = new int[55];
+        for(int i=0; i<COLS/2; i++){
+            dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100/COLS*0.1f));
+            dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100/COLS*0.9f));
+        }
 
-        for(int i=0; i<55; i++){
+        dynamicTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100/COLS*0.1f));
+
+        for(int i=0; i<ROWS; i++){
+            dynamicTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100/ROWS));
+        }
+
+        connections = new int[ROWS*COLS];
+
+        for(int i=0; i<ROWS*COLS; i++){
             connections[i] = EMPTY;
         }
 
-        for(int i=0; i<5; i++){
-            connections[i*11] = UP | DOWN;
-            connections[i*11+10] = UP | DOWN;
+        for(int i=0; i<ROWS; i++){
+            connections[i*COLS] = UP | DOWN;
+            connections[i*COLS+COLS-1] = UP | DOWN;
         }
         
         
@@ -120,6 +118,12 @@ public partial class Form1 : System.Windows.Forms.Form
         dynamicTableLayoutPanel.Paint += Form1_Paint;
 
         this.BackColor = Color.White;
+        this.Resize += Form1_Resize;
+    }
+
+    private void Form1_Resize(object sender, System.EventArgs e){
+        //Console.WriteLine("resize");
+        mouseClickedPos = new Point(0,0);
     }
 
     private void toolStripMenuItem_Click(object sender, EventArgs e){
@@ -249,7 +253,7 @@ public partial class Form1 : System.Windows.Forms.Form
         //if (clickedCellPos.HasValue && clickedCellPos.Value.X > 0 && clickedCellPos.Value.X < 10 &&
         if(cellPos.HasValue){//} && cellPos.Value.X == clickedCellPos.Value.X && cellPos.Value.Y == clickedCellPos.Value.Y) {
 
-            int conn = connections[cellPos.Value.Y*11+cellPos.Value.X];
+            int conn = connections[cellPos.Value.Y*COLS+cellPos.Value.X];
             int cellPosX = (int)cellPos.Value.X;
             int cellPosY = (int)cellPos.Value.Y;
             if((conn & UP) == UP){
@@ -328,53 +332,53 @@ public partial class Form1 : System.Windows.Forms.Form
 
     private void connectAbove(int x, int y1, int y2){
         if(y2<0)return;
-        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT))  && y1 != y2){
-            connections[y2*11+x] |= DOWN;
+        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT))  && y1 != y2){
+            connections[y2*COLS+x] |= DOWN;
             return;
         }
         if(y1 != y2){
-            connections[y2*11+x] |= UP;
-            connections[y2*11+x] |= DOWN;
+            connections[y2*COLS+x] |= UP;
+            connections[y2*COLS+x] |= DOWN;
         }else{
-            connections[y2*11+x] |= UP;
+            connections[y2*COLS+x] |= UP;
         }
         connectAbove(x, y1, y2-1);
     }
 
     private void connectBelow(int x, int y1, int y2){
-        if(y2>(5-1))return;
-        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT))  && y1 != y2){
-            connections[y2*11+x] |= UP;
+        if(y2>(ROWS-1))return;
+        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT))  && y1 != y2){
+            connections[y2*COLS+x] |= UP;
             return;
         }
         if(y1 != y2){
-            connections[y2*11+x] |= UP;
-            connections[y2*11+x] |= DOWN;
+            connections[y2*COLS+x] |= UP;
+            connections[y2*COLS+x] |= DOWN;
         }else{
-            connections[y2*11+x] |= DOWN;
+            connections[y2*COLS+x] |= DOWN;
         }
         connectBelow(x, y1, y2+1);
     }
 
     private void disconnectAbove(int x, int y1, int y2){
         if(y2<0)return;
-        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT))  && y1 != y2){
-            connections[y2*11+x] &= ~DOWN;
+        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT))  && y1 != y2){
+            connections[y2*COLS+x] &= ~DOWN;
             return;
         }
-        connections[y2*11+x] &= ~UP;
-        connections[y2*11+x] &= ~DOWN;
+        connections[y2*COLS+x] &= ~UP;
+        connections[y2*COLS+x] &= ~DOWN;
         disconnectAbove(x, y1, y2-1);
     }
 
     private void disconnectBelow(int x, int y1, int y2){
-        if(y2>(5-1))return;
-        if((((connections[y2*11+x] & LEFT) == LEFT) || ((connections[y2*11+x] & RIGHT) == RIGHT)) && y1 != y2){
-            connections[y2*11+x] &= ~UP;
+        if(y2>(ROWS-1))return;
+        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT)) && y1 != y2){
+            connections[y2*COLS+x] &= ~UP;
             return;
         }
-        connections[y2*11+x] &= ~UP;
-        connections[y2*11+x] &= ~DOWN;
+        connections[y2*COLS+x] &= ~UP;
+        connections[y2*COLS+x] &= ~DOWN;
         disconnectBelow(x, y1, y2+1);
     }
 
@@ -383,28 +387,28 @@ public partial class Form1 : System.Windows.Forms.Form
         if(ladObjectToDrop >= 0){
             if(ladObjectToDrop == COIL){//or in table of objects that need to be last in line
                 
-                for(int i=8; i>=0; i--){
-                    if(connections[cellPos.Y*11+i] == EMPTY){
+                for(int i=COLS-3; i>=0; i--){
+                    if(connections[cellPos.Y*COLS+i] == EMPTY){
                          if(i % 2 == 0){
-                             connections[cellPos.Y*11+i] |= RIGHT | LEFT;
+                             connections[cellPos.Y*COLS+i] |= RIGHT | LEFT;
                          }else{
-                             connections[cellPos.Y*11+i] |= CONN;
+                             connections[cellPos.Y*COLS+i] |= CONN;
                          }
                     }else{
-                        connections[cellPos.Y*11+i] |= RIGHT;
+                        connections[cellPos.Y*COLS+i] |= RIGHT;
                         break;
                     }
                 }
                 
-                connections[cellPos.Y*11+9] = ladObjectToDrop;
-                connections[cellPos.Y*11+10] |= LEFT;
+                connections[cellPos.Y*COLS+COLS-2] = ladObjectToDrop;
+                connections[cellPos.Y*COLS+COLS-1] |= LEFT;
             }else{
                 int x = cellPos.X;
                 int[] heights = dynamicTableLayoutPanel.GetRowHeights();
 
                 if(x % 2 == 0){
                     if(ladObjectToDrop == CONN){
-                        if(connections[cellPos.Y*11+x] != EMPTY){
+                        if(connections[cellPos.Y*COLS+x] != EMPTY){
                             if(mousePos.Y<(heights[0]/2)){
                                 connectAbove(cellPos.X, cellPos.Y, cellPos.Y);
                             }else{
@@ -422,20 +426,20 @@ public partial class Form1 : System.Windows.Forms.Form
                     x -=1;
                 }
 
-                if((connections[cellPos.Y*11+x] == EMPTY || connections[cellPos.Y*11+x] == CONN) && ladObjectToDrop != EMPTY){
+                if((connections[cellPos.Y*COLS+x] == EMPTY || connections[cellPos.Y*COLS+x] == CONN) && ladObjectToDrop != EMPTY){
 
-                    if(ladObjectToDrop == CONN && connections[cellPos.Y*11+x-1] == EMPTY && connections[cellPos.Y*11+x+1] == EMPTY){
+                    if(ladObjectToDrop == CONN && connections[cellPos.Y*COLS+x-1] == EMPTY && connections[cellPos.Y*COLS+x+1] == EMPTY){
                         return;
                     }
-                    connections[cellPos.Y*11+x-1] |= RIGHT;
-                    connections[cellPos.Y*11+x+1] |= LEFT;
-                    connections[cellPos.Y*11+x] = ladObjectToDrop;
+                    connections[cellPos.Y*COLS+x-1] |= RIGHT;
+                    connections[cellPos.Y*COLS+x+1] |= LEFT;
+                    connections[cellPos.Y*COLS+x] = ladObjectToDrop;
                 }
 
                 if(ladObjectToDrop == EMPTY && cellPos.X % 2 != 0){
-                    connections[cellPos.Y*11+cellPos.X-1] &= ~RIGHT;
-                    connections[cellPos.Y*11+cellPos.X+1] &= ~LEFT;
-                    connections[cellPos.Y*11+cellPos.X] = EMPTY;
+                    connections[cellPos.Y*COLS+cellPos.X-1] &= ~RIGHT;
+                    connections[cellPos.Y*COLS+cellPos.X+1] &= ~LEFT;
+                    connections[cellPos.Y*COLS+cellPos.X] = EMPTY;
                 }
 
             }
@@ -497,21 +501,21 @@ public partial class Form1 : System.Windows.Forms.Form
             if(cellPos.HasValue && cellPos.Value.X-1>=0)
             {
                 if(cellPos.Value.X % 2 == 0){
-                    if(mouseCellPos.HasValue && connections[cellPos.Value.Y*11+cellPos.Value.X-1] != EMPTY){
+                    if(mouseCellPos.HasValue && connections[cellPos.Value.Y*COLS+cellPos.Value.X-1] != EMPTY){
                         bool isConnection = false;
                         if(mouseCellPos.Value.Y<(heights[0]/2)){
                             for(int i = cellPos.Value.Y-1; i>=0; i--)
-                                if(connections[i*11+cellPos.Value.X] != EMPTY){isConnection=true;break;}
+                                if(connections[i*COLS+cellPos.Value.X] != EMPTY){isConnection=true;break;}
                         }else{
-                            for(int i = cellPos.Value.Y+1; i<5/*!!!*/; i++)
-                                if(connections[i*11+cellPos.Value.X] != EMPTY){isConnection=true;break;}
+                            for(int i = cellPos.Value.Y+1; i<ROWS; i++)
+                                if(connections[i*COLS+cellPos.Value.X] != EMPTY){isConnection=true;break;}
                         }
 
                         if(isConnection)
                             e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X+Cursor.Size.Width / 2, p.Y+Cursor.Size.Height / 2), 
                                 new PointF(p.X+Cursor.Size.Width / 2,p.Y+Cursor.Size.Height));
                     }
-                }else if(cellPos.Value.X % 2 != 0 && connections[cellPos.Value.Y*11+cellPos.Value.X-1] != EMPTY){
+                }else if(cellPos.Value.X % 2 != 0 && connections[cellPos.Value.Y*COLS+cellPos.Value.X-1] != EMPTY){
                     e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X, p.Y+Cursor.Size.Height), 
                         new PointF(p.X+Cursor.Size.Width/2,p.Y+Cursor.Size.Height));
                 }
