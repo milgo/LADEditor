@@ -1,5 +1,7 @@
 namespace winforms;
 
+using System.Text;
+
 public partial class Form1 : System.Windows.Forms.Form
 {
 
@@ -8,24 +10,32 @@ public partial class Form1 : System.Windows.Forms.Form
     ToolStripButton toolCoilButton;
     ToolStripButton toolConButton;
     ToolStripButton toolDelButton;
+    ToolStripButton toolBuildButton;
 
     ToolStrip toolStrip;
     int [] connections;
     int ladObjectToDrop = -1;
+
+    List<List<int>> trees = null;
+    List<List<int>> parents = null;
 
     Point mouseClickedPos;
 
     private const int EMPTY = 0;
     private const int UP = 1;
     private const int DOWN = 2;
-    private const int LEFT = 4;
-    private const int RIGHT = 8;
-    private const int CONN = 16;
-    private const int NOCON = 32;
-    private const int COIL = 64;
+    private const int LEFT = 3;
+    private const int RIGHT = 4;
+    private const int CONN = 5;
+    private const int NOCON = 6;
+    private const int COIL = 7;
 
-    private const int ROWS = 8;
-    private const int COLS = 15;//must be odd
+    private const int END = 32;
+
+    private string [] objStr = {"EMPTY", "UP", "DOWN", "LEFT", "RIGHT", "CONN", "NOCON", "COIL"};
+
+    private const int ROWS = 6;
+    private const int COLS = 13;//must be odd
 
     public Form1()
     {
@@ -72,10 +82,20 @@ public partial class Form1 : System.Windows.Forms.Form
         toolDelButton.ImageScaling = ToolStripItemImageScaling.None;
         toolDelButton.Click += toolStripMenuItem_Click;
 
+        toolBuildButton = new ToolStripButton();
+        toolBuildButton.Name = "BUILD";
+        toolBuildButton.AutoSize = false;
+        toolBuildButton.Size = new Size(32,32);
+        toolBuildButton.CheckOnClick = true;
+        toolBuildButton.Image = Image.FromFile(@"build.ico");
+        toolBuildButton.ImageScaling = ToolStripItemImageScaling.None;
+        toolBuildButton.Click += build_Click;
+
         toolStrip.Items.Add(toolNoConButton);
         toolStrip.Items.Add(toolCoilButton);
         toolStrip.Items.Add(toolConButton);
         toolStrip.Items.Add(toolDelButton);
+        toolStrip.Items.Add(toolBuildButton);
 
         //MenuStrip menuStrip = new MenuStrip();
         //menuStrip.Dock = DockStyle.Top;
@@ -98,15 +118,21 @@ public partial class Form1 : System.Windows.Forms.Form
         }
 
         connections = new int[ROWS*COLS];
-
+        trees = new List<List<int>>();
+        parents = new List<List<int>>();
         for(int i=0; i<ROWS*COLS; i++){
             connections[i] = EMPTY;
+            trees.Add(new List<int>());
+            parents.Add(new List<int>());
         }
 
         for(int i=0; i<ROWS; i++){
-            connections[i*COLS] = UP | DOWN;
-            connections[i*COLS+COLS-1] = UP | DOWN;
+            connections[i*COLS] = 1<<UP | 1<<DOWN;
+            connections[i*COLS+COLS-1] = 1<<UP | 1<<DOWN;
         }
+
+        connections[0] |= 1<<0;
+        connections[12] |= 1<<END;
         
         
         dynamicTableLayoutPanel.CellPaint += tableLayoutPanel_CellPaint;
@@ -121,18 +147,66 @@ public partial class Form1 : System.Windows.Forms.Form
         this.Resize += Form1_Resize;
     }
 
+    private bool isBitSet(int val, int bit){
+        return ((val & 1<<bit) == 1<<bit);
+    }
+
     private void Form1_Resize(object sender, System.EventArgs e){
         //Console.WriteLine("resize");
         mouseClickedPos = new Point(0,0);
     }
 
+    private void printConnectionInConsole(int c){
+        
+        StringBuilder sb = new StringBuilder("", 50);
+        for(int i=0; i<8; i++){
+            if(isBitSet(c, i)){
+                sb.Append(objStr[i]);
+                //sb.Append("|");
+            }
+        }
+        Console.WriteLine(sb.ToString());
+    }
+
+    private void build_Click(object sender, EventArgs e){
+        Console.WriteLine("build");
+
+        for(int i=0; i<ROWS*COLS; i++){
+            trees[i].Clear();
+        }
+
+        //for(int i=0; i<ROWS; i++){
+            crawlLeft(COLS-1,0,COLS-1);
+            crawlDown(COLS-1,0,COLS-1);
+        //}
+
+        StringBuilder sb = new StringBuilder("", 50);
+
+        for(int i=0; i<ROWS*COLS; i++){
+            sb.Append(i + " (" );
+
+            foreach(int j in parents[i]){
+                sb.Append(j + ",");
+            }
+
+            sb.Append( "): [");
+
+            foreach(int j in trees[i]){
+                sb.Append(j + ",");
+            }
+            sb.Append("]");
+            Console.WriteLine(sb.ToString());
+            sb.Clear();
+        }
+    }
+
     private void toolStripMenuItem_Click(object sender, EventArgs e){
         if(sender == toolNoConButton){
-            ladObjectToDrop = NOCON;
+            ladObjectToDrop = 1<<NOCON;
         }else if(sender == toolCoilButton){
-            ladObjectToDrop = COIL;
+            ladObjectToDrop = 1<<COIL;
         }else if(sender == toolConButton){
-            ladObjectToDrop = CONN;
+            ladObjectToDrop = 1<<CONN;
         }
         else if(sender == toolDelButton){
             ladObjectToDrop = EMPTY;
@@ -256,27 +330,27 @@ public partial class Form1 : System.Windows.Forms.Form
             int conn = connections[cellPos.Value.Y*COLS+cellPos.Value.X];
             int cellPosX = (int)cellPos.Value.X;
             int cellPosY = (int)cellPos.Value.Y;
-            if((conn & UP) == UP){
+            if(isBitSet(conn, UP)){
                 e.Graphics.DrawLine(Pens.Blue, 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f));
             }
-            if((conn & DOWN) == DOWN){
+            if(isBitSet(conn, DOWN)){
                 e.Graphics.DrawLine(Pens.Blue, 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]));
             }
-            if((conn & LEFT) == LEFT){
+            if(isBitSet(conn, LEFT)){
                 e.Graphics.DrawLine(Pens.Blue, 
                                     new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]/2f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f));
             }
-            if((conn & RIGHT) == RIGHT){
+            if(isBitSet(conn, RIGHT)){
                 e.Graphics.DrawLine(Pens.Blue, 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]/2f,e.CellBounds.Top+heights[cellPosY]/2f), 
                                     new PointF(e.CellBounds.Right,e.CellBounds.Top+heights[cellPosY]/2f));
             }
-            if((conn & NOCON) == NOCON){
+            if(isBitSet(conn, NOCON)){
                 e.Graphics.DrawLine(Pens.Blue, 
                                     new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]*0.5f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.5f));
@@ -290,7 +364,7 @@ public partial class Form1 : System.Windows.Forms.Form
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.56f));                    
             }
-            if((conn & COIL) == COIL){
+            if(isBitSet(conn, COIL)){
                 e.Graphics.DrawLine(Pens.Blue, 
                                     new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]*0.5f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.44f,e.CellBounds.Top+heights[cellPosY]*0.5f));
@@ -314,7 +388,7 @@ public partial class Form1 : System.Windows.Forms.Form
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.44f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX]*0.56f,e.CellBounds.Top+heights[cellPosY]*0.56f));*/               
             }
-            if((conn & CONN) == CONN){
+            if(isBitSet(conn, CONN)){
                 e.Graphics.DrawLine(Pens.Blue, 
                                     new PointF(e.CellBounds.Left,e.CellBounds.Top+heights[cellPosY]*0.5f), 
                                     new PointF(e.CellBounds.Left+widths[cellPosX],e.CellBounds.Top+heights[cellPosY]*0.5f));
@@ -332,82 +406,82 @@ public partial class Form1 : System.Windows.Forms.Form
 
     private void connectAbove(int x, int y1, int y2){
         if(y2<0)return;
-        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT))  && y1 != y2){
-            connections[y2*COLS+x] |= DOWN;
+        if((isBitSet(connections[y2*COLS+x], LEFT) || isBitSet(connections[y2*COLS+x],RIGHT))  && (y1 != y2)){
+            connections[y2*COLS+x] |= 1<<DOWN;
             return;
         }
         if(y1 != y2){
-            connections[y2*COLS+x] |= UP;
-            connections[y2*COLS+x] |= DOWN;
+            connections[y2*COLS+x] |= 1<<UP;
+            connections[y2*COLS+x] |= 1<<DOWN;
         }else{
-            connections[y2*COLS+x] |= UP;
+            connections[y2*COLS+x] |= 1<<UP;
         }
         connectAbove(x, y1, y2-1);
     }
 
     private void connectBelow(int x, int y1, int y2){
         if(y2>(ROWS-1))return;
-        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT))  && y1 != y2){
-            connections[y2*COLS+x] |= UP;
+        if((isBitSet(connections[y2*COLS+x], LEFT) || isBitSet(connections[y2*COLS+x],RIGHT))  && (y1 != y2)){
+            connections[y2*COLS+x] |= 1<<UP;
             return;
         }
         if(y1 != y2){
-            connections[y2*COLS+x] |= UP;
-            connections[y2*COLS+x] |= DOWN;
+            connections[y2*COLS+x] |= 1<<UP;
+            connections[y2*COLS+x] |= 1<<DOWN;
         }else{
-            connections[y2*COLS+x] |= DOWN;
+            connections[y2*COLS+x] |= 1<<DOWN;
         }
         connectBelow(x, y1, y2+1);
     }
 
     private void disconnectAbove(int x, int y1, int y2){
         if(y2<0)return;
-        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT))  && y1 != y2){
-            connections[y2*COLS+x] &= ~DOWN;
+        if((isBitSet(connections[y2*COLS+x], LEFT) || isBitSet(connections[y2*COLS+x],RIGHT))  && (y1 != y2)){
+            connections[y2*COLS+x] &= ~(1<<DOWN);
             return;
         }
-        connections[y2*COLS+x] &= ~UP;
-        connections[y2*COLS+x] &= ~DOWN;
+        connections[y2*COLS+x] &= ~(1<<UP);
+        connections[y2*COLS+x] &= ~(1<<DOWN);
         disconnectAbove(x, y1, y2-1);
     }
 
     private void disconnectBelow(int x, int y1, int y2){
         if(y2>(ROWS-1))return;
-        if((((connections[y2*COLS+x] & LEFT) == LEFT) || ((connections[y2*COLS+x] & RIGHT) == RIGHT)) && y1 != y2){
-            connections[y2*COLS+x] &= ~UP;
+        if((isBitSet(connections[y2*COLS+x], LEFT) || isBitSet(connections[y2*COLS+x],RIGHT))  && (y1 != y2)){
+            connections[y2*COLS+x] &= ~(1<<UP);
             return;
         }
-        connections[y2*COLS+x] &= ~UP;
-        connections[y2*COLS+x] &= ~DOWN;
+        connections[y2*COLS+x] &= ~(1<<UP);
+        connections[y2*COLS+x] &= ~(1<<DOWN);
         disconnectBelow(x, y1, y2+1);
     }
 
     private void connect(Point cellPos, Point mousePos){
 
         if(ladObjectToDrop >= 0){
-            if(ladObjectToDrop == COIL){//or in table of objects that need to be last in line
+            if(ladObjectToDrop == 1<<COIL){//or in table of objects that need to be last in line
                 
                 for(int i=COLS-3; i>=0; i--){
                     if(connections[cellPos.Y*COLS+i] == EMPTY){
                          if(i % 2 == 0){
-                             connections[cellPos.Y*COLS+i] |= RIGHT | LEFT;
+                             connections[cellPos.Y*COLS+i] |= (1<<RIGHT) | (1<<LEFT);
                          }else{
-                             connections[cellPos.Y*COLS+i] |= CONN;
+                             connections[cellPos.Y*COLS+i] |= 1<<CONN;
                          }
                     }else{
-                        connections[cellPos.Y*COLS+i] |= RIGHT;
+                        connections[cellPos.Y*COLS+i] |= 1<<RIGHT;
                         break;
                     }
                 }
                 
                 connections[cellPos.Y*COLS+COLS-2] = ladObjectToDrop;
-                connections[cellPos.Y*COLS+COLS-1] |= LEFT;
+                connections[cellPos.Y*COLS+COLS-1] |= 1<<LEFT;
             }else{
                 int x = cellPos.X;
                 int[] heights = dynamicTableLayoutPanel.GetRowHeights();
 
                 if(x % 2 == 0){
-                    if(ladObjectToDrop == CONN){
+                    if(ladObjectToDrop == 1<<CONN){
                         if(connections[cellPos.Y*COLS+x] != EMPTY){
                             if(mousePos.Y<(heights[0]/2)){
                                 connectAbove(cellPos.X, cellPos.Y, cellPos.Y);
@@ -426,19 +500,19 @@ public partial class Form1 : System.Windows.Forms.Form
                     x -=1;
                 }
 
-                if((connections[cellPos.Y*COLS+x] == EMPTY || connections[cellPos.Y*COLS+x] == CONN) && ladObjectToDrop != EMPTY){
+                if((connections[cellPos.Y*COLS+x] == EMPTY || connections[cellPos.Y*COLS+x] == 1<<CONN) && ladObjectToDrop != EMPTY){
 
-                    if(ladObjectToDrop == CONN && connections[cellPos.Y*COLS+x-1] == EMPTY && connections[cellPos.Y*COLS+x+1] == EMPTY){
+                    if(ladObjectToDrop == 1<<CONN && connections[cellPos.Y*COLS+x-1] == EMPTY && connections[cellPos.Y*COLS+x+1] == EMPTY){
                         return;
                     }
-                    connections[cellPos.Y*COLS+x-1] |= RIGHT;
-                    connections[cellPos.Y*COLS+x+1] |= LEFT;
+                    connections[cellPos.Y*COLS+x-1] |= 1<<RIGHT;
+                    connections[cellPos.Y*COLS+x+1] |= 1<<LEFT;
                     connections[cellPos.Y*COLS+x] = ladObjectToDrop;
                 }
 
                 if(ladObjectToDrop == EMPTY && cellPos.X % 2 != 0){
-                    connections[cellPos.Y*COLS+cellPos.X-1] &= ~RIGHT;
-                    connections[cellPos.Y*COLS+cellPos.X+1] &= ~LEFT;
+                    connections[cellPos.Y*COLS+cellPos.X-1] &= ~(1<<RIGHT);
+                    connections[cellPos.Y*COLS+cellPos.X+1] &= ~(1<<LEFT);
                     connections[cellPos.Y*COLS+cellPos.X] = EMPTY;
                 }
 
@@ -490,7 +564,7 @@ public partial class Form1 : System.Windows.Forms.Form
         //e.Graphics.DrawImage(bmp, 10,10);
         //base.OnPaint(e);
 
-        if(ladObjectToDrop == CONN){
+        if(ladObjectToDrop == 1<<CONN){
 
             Point p = dynamicTableLayoutPanel.PointToClient(Cursor.Position);
 
@@ -531,5 +605,108 @@ public partial class Form1 : System.Windows.Forms.Form
 
     private void Form1_MouseMove(object sender, MouseEventArgs e){
         dynamicTableLayoutPanel.Invalidate();
+    }
+
+
+    private void crawlUp(int x, int y, int parent){
+        if(x<1 || y<1)return;
+        //Console.WriteLine(connections[y*COLS+x]);
+         int c = connections[y*COLS+x];
+            
+                if(isBitSet(c, LEFT)){
+                    //Console.WriteLine("A (");
+                    crawlLeft(x-1, y, parent);
+                    //Console.WriteLine(")");
+                }
+
+                if(isBitSet(c, UP)){
+                    Console.WriteLine("O (");
+                    crawlUp(x, y-1, parent);
+                    Console.WriteLine(")");
+                }
+    }
+
+    private void crawlDown(int x, int y, int parent){
+        if(y>=ROWS)return;
+        //Console.WriteLine(connections[y*COLS+x]);
+        int c = connections[y*COLS+x];
+            
+                if(isBitSet(c, LEFT)){
+                    //Console.WriteLine("A (");
+                    crawlLeft(x-1, y, parent);
+                    //Console.WriteLine(")");
+                }
+
+                if(isBitSet(c, DOWN)){
+                    //Console.WriteLine("O (");
+                    crawlDown(x, y+1, parent);
+                    Console.WriteLine("down");
+                }
+    }
+
+    private void crawlLeft(int x, int y, int parent){
+
+        if(y<0 || x<0)return;
+        int id = y*COLS+x;
+
+        if(x==0){
+            if(parent>=0){
+                if(!trees[parent].Contains(id)){
+                    parents[id].Add(parent);
+                    trees[parent].Add(0);
+                }
+            }
+            return;
+        }
+
+        if(x%2!=0 && connections[id] != 1<<CONN){
+            printConnectionInConsole(connections[y*COLS+x]);
+
+            if(parent>=0){
+                if(!trees[parent].Contains(id)){
+                    parents[id].Add(parent);
+                    trees[parent].Add(id);
+                }
+            }
+
+            parent = id;
+        }
+        //Console.WriteLine(connections[y*COLS+x]);
+
+        int c = connections[y*COLS+x];
+            if((isBitSet(c, RIGHT) && (x%2 == 0)) || (isBitSet(c, END) && (x%2 == 0))){
+                
+                /*if(isBitSet(c, LEFT)){
+                    //Console.WriteLine("A (");
+                    crawlLeft(x-1, y, parent);
+                    //Console.WriteLine(")");
+                }*/
+
+
+                /*if((isBitSet(c, UP) && isBitSet(c, DOWN)) ||//!!!!!
+                    (isBitSet(c, UP) && isBitSet(c, LEFT)) ||
+                    (isBitSet(c, LEFT) && isBitSet(c, DOWN))){*/
+                        //Console.WriteLine("O (");
+                        if(isBitSet(c, LEFT)){
+                            crawlLeft(x-1, y, parent);
+                        }
+                        if(isBitSet(c, UP)){
+                            crawlUp(x, y-1, parent);
+                        }
+                        if(isBitSet(c, DOWN)){
+                            crawlDown(x, y+1, parent);
+                        }
+                        
+                        //Console.WriteLine(")");
+                    /*}*/
+                
+                
+            }else if ((x%2 != 0) && c == 1<<CONN){
+                crawlLeft(x - 1, y, parent);
+            }else if ((x%2 != 0) && c != EMPTY){
+                //Console.WriteLine("A (");
+                crawlLeft(x - 1, y, parent);
+                //Console.WriteLine(")");
+            }
     }
 }
