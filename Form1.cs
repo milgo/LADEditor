@@ -16,8 +16,8 @@ public partial class Form1 : System.Windows.Forms.Form
     int [] connections;
     int ladObjectToDrop = -1;
 
-    List<List<int>> trees = null;
-    List<List<int>> parents = null;
+    List<List<int>> child = null;
+    List<List<int>> parent = null;
 
     Point mouseClickedPos;
 
@@ -118,12 +118,12 @@ public partial class Form1 : System.Windows.Forms.Form
         }
 
         connections = new int[ROWS*COLS];
-        trees = new List<List<int>>();
-        parents = new List<List<int>>();
+        child = new List<List<int>>();
+        parent = new List<List<int>>();
         for(int i=0; i<ROWS*COLS; i++){
             connections[i] = EMPTY;
-            trees.Add(new List<int>());
-            parents.Add(new List<int>());
+            child.Add(new List<int>());
+            parent.Add(new List<int>());
         }
 
         for(int i=0; i<ROWS; i++){
@@ -168,16 +168,47 @@ public partial class Form1 : System.Windows.Forms.Form
         Console.WriteLine(sb.ToString());
     }
 
+
+    List<String> prog = new List<String>();
+
+    void compile(int id){
+
+        //Console.WriteLine(id);
+
+        if(isBitSet(connections[id], COIL))
+            prog.Add("= " + id);
+        else if(isBitSet(connections[id], NOCON))
+            prog.Add("A "+id);
+
+        List<int> l = new List<int>();
+        for(int i=0; i<ROWS*COLS; i++){
+            if(parent[i].Contains(id)){
+                l.Add(i);
+            }
+        } 
+
+        if(l.Count() > 1)
+            prog.Add(")");
+
+        foreach(int c in l){
+            compile(c);
+        }
+
+        if(l.Count() > 1)
+            prog.Add("O(");
+    }
+
     private void build_Click(object sender, EventArgs e){
         Console.WriteLine("build");
 
         for(int i=0; i<ROWS*COLS; i++){
-            trees[i].Clear();
+            child[i].Clear();
+            parent[i].Clear();
         }
 
         //for(int i=0; i<ROWS; i++){
             crawlLeft(COLS-1,0,COLS-1);
-            crawlDown(COLS-1,0,COLS-1);
+            //crawlDown(COLS-1,0,COLS-1);
         //}
 
         StringBuilder sb = new StringBuilder("", 50);
@@ -185,18 +216,28 @@ public partial class Form1 : System.Windows.Forms.Form
         for(int i=0; i<ROWS*COLS; i++){
             sb.Append(i + " (" );
 
-            foreach(int j in parents[i]){
+            foreach(int j in parent[i]){
                 sb.Append(j + ",");
             }
 
             sb.Append( "): [");
 
-            foreach(int j in trees[i]){
+            foreach(int j in child[i]){
                 sb.Append(j + ",");
             }
             sb.Append("]");
             Console.WriteLine(sb.ToString());
             sb.Clear();
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Listing:");
+        Console.WriteLine("-------------");
+        prog.Clear();
+        compile(12);
+        prog.Reverse();
+        foreach(String s in prog){
+            Console.WriteLine(s);
         }
     }
 
@@ -312,6 +353,13 @@ public partial class Form1 : System.Windows.Forms.Form
         var bottomLeft = new Point(e.CellBounds.Left, e.CellBounds.Bottom);
         Pen p = new Pen(Color.Black);
         p.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;*/
+
+        
+        if(cellPos.HasValue)
+        {
+            int n = e.Column+e.Row*COLS;
+            e.Graphics.DrawString(String.Format("{0}",n), new Font("Arial", 10), Brushes.Black, e.CellBounds.Location);
+        }
 
         if(e.CellBounds.Contains(mouseClickedPos)){
             var rect = GetCellConnectionBounds(dynamicTableLayoutPanel, e.CellBounds.Location);
@@ -561,8 +609,6 @@ public partial class Form1 : System.Windows.Forms.Form
     }
 
     private void Form1_Paint(object sender, PaintEventArgs e){
-        //e.Graphics.DrawImage(bmp, 10,10);
-        //base.OnPaint(e);
 
         if(ladObjectToDrop == 1<<CONN){
 
@@ -572,8 +618,10 @@ public partial class Form1 : System.Windows.Forms.Form
             var mouseCellPos = GetCellLocalPos(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
             int[] heights = dynamicTableLayoutPanel.GetRowHeights();
 
+            
             if(cellPos.HasValue && cellPos.Value.X-1>=0)
             {
+
                 if(cellPos.Value.X % 2 == 0){
                     if(mouseCellPos.HasValue && connections[cellPos.Value.Y*COLS+cellPos.Value.X-1] != EMPTY){
                         bool isConnection = false;
@@ -609,7 +657,7 @@ public partial class Form1 : System.Windows.Forms.Form
 
 
     private void crawlUp(int x, int y, int parent){
-        if(x<1 || y<1)return;
+        if(x<1 || y<0)return;
         //Console.WriteLine(connections[y*COLS+x]);
          int c = connections[y*COLS+x];
             
@@ -620,9 +668,9 @@ public partial class Form1 : System.Windows.Forms.Form
                 }
 
                 if(isBitSet(c, UP)){
-                    Console.WriteLine("O (");
+                    //Console.WriteLine("O (");
                     crawlUp(x, y-1, parent);
-                    Console.WriteLine(")");
+                    //Console.WriteLine(")");
                 }
     }
 
@@ -644,17 +692,17 @@ public partial class Form1 : System.Windows.Forms.Form
                 }
     }
 
-    private void crawlLeft(int x, int y, int parent){
+    private void crawlLeft(int x, int y, int p){
 
         if(y<0 || x<0)return;
         int id = y*COLS+x;
 
         if(x==0){
-            if(parent>=0){
-                if(!trees[parent].Contains(id)){
-                    parents[id].Add(parent);
-                    trees[parent].Add(0);
-                }
+            if(p>=0){
+                //if(!child[p].Contains(id)){
+                    parent[id].Add(p);
+                    child[p].Add(0);
+                //}
             }
             return;
         }
@@ -662,14 +710,16 @@ public partial class Form1 : System.Windows.Forms.Form
         if(x%2!=0 && connections[id] != 1<<CONN){
             printConnectionInConsole(connections[y*COLS+x]);
 
-            if(parent>=0){
-                if(!trees[parent].Contains(id)){
-                    parents[id].Add(parent);
-                    trees[parent].Add(id);
-                }
+            if(p>=0){
+                //if(!child[p].Contains(id)){
+                   
+                    
+                //}
+                 parent[id].Add(p);
+                 child[p].Add(id);
             }
 
-            parent = id;
+            p = id;
         }
         //Console.WriteLine(connections[y*COLS+x]);
 
@@ -688,13 +738,13 @@ public partial class Form1 : System.Windows.Forms.Form
                     (isBitSet(c, LEFT) && isBitSet(c, DOWN))){*/
                         //Console.WriteLine("O (");
                         if(isBitSet(c, LEFT)){
-                            crawlLeft(x-1, y, parent);
+                            crawlLeft(x-1, y, p);
                         }
                         if(isBitSet(c, UP)){
-                            crawlUp(x, y-1, parent);
+                            crawlUp(x, y-1, p);
                         }
                         if(isBitSet(c, DOWN)){
-                            crawlDown(x, y+1, parent);
+                            crawlDown(x, y+1, p);
                         }
                         
                         //Console.WriteLine(")");
@@ -702,10 +752,10 @@ public partial class Form1 : System.Windows.Forms.Form
                 
                 
             }else if ((x%2 != 0) && c == 1<<CONN){
-                crawlLeft(x - 1, y, parent);
+                crawlLeft(x - 1, y, p);
             }else if ((x%2 != 0) && c != EMPTY){
                 //Console.WriteLine("A (");
-                crawlLeft(x - 1, y, parent);
+                crawlLeft(x - 1, y, p);
                 //Console.WriteLine(")");
             }
     }
