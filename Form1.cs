@@ -214,13 +214,13 @@ public partial class Form1 : System.Windows.Forms.Form
         StringBuilder sb = new StringBuilder("", 50);
 
         for(int i=0; i<ROWS*COLS; i++){
-            sb.Append(i + " (" );
+            sb.Append(i + " p(" );
 
             foreach(int j in parent[i]){
                 sb.Append(j + ",");
             }
 
-            sb.Append( "): [");
+            sb.Append( "): c[");
 
             foreach(int j in child[i]){
                 sb.Append(j + ",");
@@ -581,7 +581,7 @@ public partial class Form1 : System.Windows.Forms.Form
         var mouseCellPos = GetCellLocalPos(dynamicTableLayoutPanel, dynamicTableLayoutPanel.PointToClient(Cursor.Position));
         if(e.Button == MouseButtons.Right)
         {
-            if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X < 10) 
+            if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X < COLS-3) 
             {
                 if(cellPos.Value.X % 2 == 0){
                     //var localMousePos = dynamicTableLayoutPanel.GetControlFromPosition(cellPos.Value.X, cellPos.Value.Y).PointToClient(Cursor.Position);
@@ -598,7 +598,7 @@ public partial class Form1 : System.Windows.Forms.Form
             }
         }
         else if(e.Button == MouseButtons.Left){
-            if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X <= 10) 
+            if (cellPos.HasValue && cellPos.Value.X > 0 && cellPos.Value.X <= COLS-2) 
             {
                 if(canConnect(cellPos.Value) && mouseCellPos.HasValue)
                     connect(cellPos.Value, mouseCellPos.Value);
@@ -657,7 +657,7 @@ public partial class Form1 : System.Windows.Forms.Form
 
 
     private void crawlUp(int x, int y, int parent){
-        if(x<1 || y<0)return;
+        if(x<0 || y<0)return;
         //Console.WriteLine(connections[y*COLS+x]);
          int c = connections[y*COLS+x];
             
