@@ -14,6 +14,8 @@ public partial class Form1 : System.Windows.Forms.Form
 
     ToolStrip toolStrip;
     int [] connections;
+    int [] toTheLeft;
+    int [] below;
     int ladObjectToDrop = -1;
 
     List<List<int>> child = null;
@@ -29,7 +31,7 @@ public partial class Form1 : System.Windows.Forms.Form
     private const int CONN = 5;
     private const int NOCON = 6;
     private const int COIL = 7;
-
+    private const int CONN_MASK = 63;
     private const int END = 32;
 
     private string [] objStr = {"EMPTY", "UP", "DOWN", "LEFT", "RIGHT", "CONN", "NOCON", "COIL"};
@@ -118,6 +120,9 @@ public partial class Form1 : System.Windows.Forms.Form
         }
 
         connections = new int[ROWS*COLS];
+        toTheLeft = new int[ROWS*COLS];
+        below = new int[ROWS*COLS];
+
         child = new List<List<int>>();
         parent = new List<List<int>>();
         for(int i=0; i<ROWS*COLS; i++){
@@ -201,7 +206,7 @@ public partial class Form1 : System.Windows.Forms.Form
     private void build_Click(object sender, EventArgs e){
         Console.WriteLine("build");
 
-        for(int i=0; i<ROWS*COLS; i++){
+ /*       for(int i=0; i<ROWS*COLS; i++){
             child[i].Clear();
             parent[i].Clear();
         }
@@ -238,7 +243,21 @@ public partial class Form1 : System.Windows.Forms.Form
         prog.Reverse();
         foreach(String s in prog){
             Console.WriteLine(s);
+        }*/
+
+        for(int y=0; y<ROWS; y++){
+            for(int x=1; x<COLS-1; x++){
+                int id = y*COLS+x;
+                // Console.WriteLine("not " + connections[id]);
+                if(connections[y*COLS+x]>CONN_MASK){
+                    
+                    toTheLeft[id] = checkLeft(x, y);
+                    below[id] = checkBelow(x,y);
+                    Console.WriteLine("id: "+id+" left("+toTheLeft[id]+")" + "below("+ below[id] +")");
+                }
+            }
         }
+
     }
 
     private void toolStripMenuItem_Click(object sender, EventArgs e){
@@ -655,6 +674,48 @@ public partial class Form1 : System.Windows.Forms.Form
         dynamicTableLayoutPanel.Invalidate();
     }
 
+    private int checkLeft(int x, int y){
+        if(y<ROWS){
+            for(int i=x-1; i>0; i--){
+                if(connections[y*COLS+i]==EMPTY || 
+                    isBitSet(connections[y*COLS+i], DOWN) ||
+                    isBitSet(connections[y*COLS+i], UP))
+                    break;
+                if(isBitSet(connections[y*COLS+i], CONN) ||
+                    (isBitSet(connections[y*COLS+i], LEFT) && isBitSet(connections[y*COLS+i], RIGHT))){
+                    continue;
+                }
+                return y*COLS+i;
+            }
+        }
+        return -1;
+    }
+
+    private int checkBelow(int x, int y){
+        int  i=x+1, j=y+1;
+        for(; i<COLS-1; i++){
+            if(isBitSet(connections[y*COLS+i], DOWN))
+                break;
+            if(!isBitSet(connections[y*COLS+i], CONN))
+                return -1;
+        }
+
+        Console.WriteLine("1: "+i);
+
+        for(; j<ROWS; j++){
+            if(isBitSet(connections[j*COLS+i], UP)){
+                if(isBitSet(connections[j*COLS+i], LEFT))
+                    break;
+                if(!isBitSet(connections[j*COLS+i], DOWN))
+                    return -1;
+            }
+        }
+
+        
+        Console.WriteLine("2: "+j);
+
+        return checkLeft(i, j);
+    }
 
     private void crawlUp(int x, int y, int parent){
         if(x<0 || y<0)return;
@@ -700,8 +761,11 @@ public partial class Form1 : System.Windows.Forms.Form
         if(x==0){
             if(p>=0){
                 //if(!child[p].Contains(id)){
-                    parent[id].Add(p);
-                    child[p].Add(0);
+                    
+                    if(!parent[id].Contains(p))
+                        parent[id].Add(p);
+                    if(!child[p].Contains(0))
+                        child[p].Add(0);
                 //}
             }
             return;
@@ -715,8 +779,10 @@ public partial class Form1 : System.Windows.Forms.Form
                    
                     
                 //}
-                 parent[id].Add(p);
-                 child[p].Add(id);
+                if(!parent[id].Contains(p))
+                    parent[id].Add(p);
+                if(!child[p].Contains(id))
+                    child[p].Add(id);
             }
 
             p = id;
