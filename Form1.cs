@@ -14,13 +14,7 @@ public partial class Form1 : System.Windows.Forms.Form
 
     ToolStrip toolStrip;
     int [] connections;
-    int [] toTheLeft;
-    int [] below;
     int ladObjectToDrop = -1;
-
-    List<List<int>> child = null;
-    List<List<int>> parent = null;
-
     Point mouseClickedPos;
 
     private const int EMPTY = 0;
@@ -120,15 +114,9 @@ public partial class Form1 : System.Windows.Forms.Form
         }
 
         connections = new int[ROWS*COLS];
-        toTheLeft = new int[ROWS*COLS];
-        below = new int[ROWS*COLS];
 
-        child = new List<List<int>>();
-        parent = new List<List<int>>();
         for(int i=0; i<ROWS*COLS; i++){
-            connections[i] = EMPTY;
-            child.Add(new List<int>());
-            parent.Add(new List<int>());
+            connections[i] = 1<<EMPTY;
         }
 
         for(int i=0; i<ROWS; i++){
@@ -152,10 +140,6 @@ public partial class Form1 : System.Windows.Forms.Form
         this.Resize += Form1_Resize;
     }
 
-    private bool isBitSet(int val, int bit){
-        return ((val & 1<<bit) == 1<<bit);
-    }
-
     private void Form1_Resize(object sender, System.EventArgs e){
         //Console.WriteLine("resize");
         mouseClickedPos = new Point(0,0);
@@ -173,88 +157,21 @@ public partial class Form1 : System.Windows.Forms.Form
         Console.WriteLine(sb.ToString());
     }
 
-
-    List<String> prog = new List<String>();
-
     void compile(int id){
 
-        //Console.WriteLine(id);
-
-        if(isBitSet(connections[id], COIL))
-            prog.Add("= " + id);
-        else if(isBitSet(connections[id], NOCON))
-            prog.Add("A "+id);
-
-        List<int> l = new List<int>();
-        for(int i=0; i<ROWS*COLS; i++){
-            if(parent[i].Contains(id)){
-                l.Add(i);
-            }
-        } 
-
-        if(l.Count() > 1)
-            prog.Add(")");
-
-        foreach(int c in l){
-            compile(c);
-        }
-
-        if(l.Count() > 1)
-            prog.Add("O(");
     }
 
     private void build_Click(object sender, EventArgs e){
         Console.WriteLine("build");
 
- /*       for(int i=0; i<ROWS*COLS; i++){
-            child[i].Clear();
-            parent[i].Clear();
-        }
-
-        //for(int i=0; i<ROWS; i++){
-            crawlLeft(COLS-1,0,COLS-1);
-            //crawlDown(COLS-1,0,COLS-1);
-        //}
-
-        StringBuilder sb = new StringBuilder("", 50);
-
-        for(int i=0; i<ROWS*COLS; i++){
-            sb.Append(i + " p(" );
-
-            foreach(int j in parent[i]){
-                sb.Append(j + ",");
-            }
-
-            sb.Append( "): c[");
-
-            foreach(int j in child[i]){
-                sb.Append(j + ",");
-            }
-            sb.Append("]");
-            Console.WriteLine(sb.ToString());
-            sb.Clear();
-        }
-
-        Console.WriteLine();
-        Console.WriteLine("Listing:");
-        Console.WriteLine("-------------");
-        prog.Clear();
-        compile(12);
-        prog.Reverse();
-        foreach(String s in prog){
-            Console.WriteLine(s);
-        }*/
-
         for(int y=0; y<ROWS; y++){
             for(int x=1; x<COLS-1; x++){
                 int id = y*COLS+x;
-                // Console.WriteLine("not " + connections[id]);
-                if(connections[y*COLS+x]>CONN_MASK){
-                    
-                    toTheLeft[id] = checkLeft(x, y);
-                    below[id] = checkBelow(x,y);
-                    Console.WriteLine("id: "+id+" left("+toTheLeft[id]+")" + "below("+ below[id] +")");
-                }
+                
+                int crawlId = crawlUntilNodeOrElement(x+1,y, RIGHT);
+
+                Console.WriteLine("id: "+id +" crawlId:" +crawlId);
+
             }
         }
 
@@ -269,7 +186,7 @@ public partial class Form1 : System.Windows.Forms.Form
             ladObjectToDrop = 1<<CONN;
         }
         else if(sender == toolDelButton){
-            ladObjectToDrop = EMPTY;
+            ladObjectToDrop = 1<<EMPTY;
         }
         UncheckOtherToolStripMenuItems((ToolStripItem)sender);
     }
@@ -529,11 +446,11 @@ public partial class Form1 : System.Windows.Forms.Form
             if(ladObjectToDrop == 1<<COIL){//or in table of objects that need to be last in line
                 
                 for(int i=COLS-3; i>=0; i--){
-                    if(connections[cellPos.Y*COLS+i] == EMPTY){
+                    if(connections[cellPos.Y*COLS+i] == 1<<EMPTY){
                          if(i % 2 == 0){
                              connections[cellPos.Y*COLS+i] |= (1<<RIGHT) | (1<<LEFT);
                          }else{
-                             connections[cellPos.Y*COLS+i] |= 1<<CONN;
+                             connections[cellPos.Y*COLS+i] = 1<<CONN;
                          }
                     }else{
                         connections[cellPos.Y*COLS+i] |= 1<<RIGHT;
@@ -549,7 +466,7 @@ public partial class Form1 : System.Windows.Forms.Form
 
                 if(x % 2 == 0){
                     if(ladObjectToDrop == 1<<CONN){
-                        if(connections[cellPos.Y*COLS+x] != EMPTY){
+                        if(connections[cellPos.Y*COLS+x] != 1<<EMPTY){
                             if(mousePos.Y<(heights[0]/2)){
                                 connectAbove(cellPos.X, cellPos.Y, cellPos.Y);
                             }else{
@@ -557,7 +474,7 @@ public partial class Form1 : System.Windows.Forms.Form
                             }
                         }
                         return;
-                    }else if(ladObjectToDrop == EMPTY){
+                    }else if(ladObjectToDrop == 1<<EMPTY){
                         disconnectAbove(cellPos.X, cellPos.Y, cellPos.Y);
                         disconnectBelow(cellPos.X, cellPos.Y, cellPos.Y);
                     }
@@ -567,9 +484,9 @@ public partial class Form1 : System.Windows.Forms.Form
                     x -=1;
                 }
 
-                if((connections[cellPos.Y*COLS+x] == EMPTY || connections[cellPos.Y*COLS+x] == 1<<CONN) && ladObjectToDrop != EMPTY){
+                if((connections[cellPos.Y*COLS+x] == 1<<EMPTY || connections[cellPos.Y*COLS+x] == 1<<CONN) && ladObjectToDrop != 1<<EMPTY){
 
-                    if(ladObjectToDrop == 1<<CONN && connections[cellPos.Y*COLS+x-1] == EMPTY && connections[cellPos.Y*COLS+x+1] == EMPTY){
+                    if(ladObjectToDrop == 1<<CONN && connections[cellPos.Y*COLS+x-1] == 1<<EMPTY && connections[cellPos.Y*COLS+x+1] == 1<<EMPTY){
                         return;
                     }
                     connections[cellPos.Y*COLS+x-1] |= 1<<RIGHT;
@@ -577,10 +494,10 @@ public partial class Form1 : System.Windows.Forms.Form
                     connections[cellPos.Y*COLS+x] = ladObjectToDrop;
                 }
 
-                if(ladObjectToDrop == EMPTY && cellPos.X % 2 != 0){
+                if(ladObjectToDrop == 1<<EMPTY && cellPos.X % 2 != 0){
                     connections[cellPos.Y*COLS+cellPos.X-1] &= ~(1<<RIGHT);
                     connections[cellPos.Y*COLS+cellPos.X+1] &= ~(1<<LEFT);
-                    connections[cellPos.Y*COLS+cellPos.X] = EMPTY;
+                    connections[cellPos.Y*COLS+cellPos.X] = 1<<EMPTY;
                 }
 
             }
@@ -642,21 +559,21 @@ public partial class Form1 : System.Windows.Forms.Form
             {
 
                 if(cellPos.Value.X % 2 == 0){
-                    if(mouseCellPos.HasValue && connections[cellPos.Value.Y*COLS+cellPos.Value.X-1] != EMPTY){
+                    if(mouseCellPos.HasValue && connections[cellPos.Value.Y*COLS+cellPos.Value.X-1] != 1<<EMPTY){
                         bool isConnection = false;
                         if(mouseCellPos.Value.Y<(heights[0]/2)){
                             for(int i = cellPos.Value.Y-1; i>=0; i--)
-                                if(connections[i*COLS+cellPos.Value.X] != EMPTY){isConnection=true;break;}
+                                if(connections[i*COLS+cellPos.Value.X] != 1<<EMPTY){isConnection=true;break;}
                         }else{
                             for(int i = cellPos.Value.Y+1; i<ROWS; i++)
-                                if(connections[i*COLS+cellPos.Value.X] != EMPTY){isConnection=true;break;}
+                                if(connections[i*COLS+cellPos.Value.X] != 1<<EMPTY){isConnection=true;break;}
                         }
 
                         if(isConnection)
                             e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X+Cursor.Size.Width / 2, p.Y+Cursor.Size.Height / 2), 
                                 new PointF(p.X+Cursor.Size.Width / 2,p.Y+Cursor.Size.Height));
                     }
-                }else if(cellPos.Value.X % 2 != 0 && connections[cellPos.Value.Y*COLS+cellPos.Value.X-1] != EMPTY){
+                }else if(cellPos.Value.X % 2 != 0 && connections[cellPos.Value.Y*COLS+cellPos.Value.X-1] != 1<<EMPTY){
                     e.Graphics.DrawLine(new Pen(Color.Black, 1), new PointF(p.X, p.Y+Cursor.Size.Height), 
                         new PointF(p.X+Cursor.Size.Width/2,p.Y+Cursor.Size.Height));
                 }
@@ -674,155 +591,64 @@ public partial class Form1 : System.Windows.Forms.Form
         dynamicTableLayoutPanel.Invalidate();
     }
 
-    private int checkLeft(int x, int y){
-        if(y<ROWS){
-            for(int i=x-1; i>0; i--){
-                if(connections[y*COLS+i]==EMPTY || 
-                    isBitSet(connections[y*COLS+i], DOWN) ||
-                    isBitSet(connections[y*COLS+i], UP))
-                    break;
-                if(isBitSet(connections[y*COLS+i], CONN) ||
-                    (isBitSet(connections[y*COLS+i], LEFT) && isBitSet(connections[y*COLS+i], RIGHT))){
-                    continue;
-                }
-                return y*COLS+i;
-            }
-        }
-        return -1;
+    private int sb(int bit){
+        return 1<<bit;
     }
 
-    private int checkBelow(int x, int y){
-        int  i=x+1, j=y+1;
-        for(; i<COLS-1; i++){
-            if(isBitSet(connections[y*COLS+i], DOWN))
-                break;
-            if(!isBitSet(connections[y*COLS+i], CONN))
-                return -1;
-        }
-
-        Console.WriteLine("1: "+i);
-
-        for(; j<ROWS; j++){
-            if(isBitSet(connections[j*COLS+i], UP)){
-                if(isBitSet(connections[j*COLS+i], LEFT))
-                    break;
-                if(!isBitSet(connections[j*COLS+i], DOWN))
-                    return -1;
-            }
-        }
-
-        
-        Console.WriteLine("2: "+j);
-
-        return checkLeft(i, j);
+    private bool isBitSet(int val, int bit){
+        return ((val & 1<<bit) == 1<<bit);
     }
 
-    private void crawlUp(int x, int y, int parent){
-        if(x<0 || y<0)return;
-        //Console.WriteLine(connections[y*COLS+x]);
-         int c = connections[y*COLS+x];
-            
-                if(isBitSet(c, LEFT)){
-                    //Console.WriteLine("A (");
-                    crawlLeft(x-1, y, parent);
-                    //Console.WriteLine(")");
-                }
-
-                if(isBitSet(c, UP)){
-                    //Console.WriteLine("O (");
-                    crawlUp(x, y-1, parent);
-                    //Console.WriteLine(")");
-                }
+    private bool areBitsSet(int val, int mask){
+        //Console.WriteLine("mask: " + Convert.ToString(mask,2));
+        return ((val & mask) == mask);
     }
 
-    private void crawlDown(int x, int y, int parent){
-        if(y>=ROWS)return;
-        //Console.WriteLine(connections[y*COLS+x]);
-        int c = connections[y*COLS+x];
-            
-                if(isBitSet(c, LEFT)){
-                    //Console.WriteLine("A (");
-                    crawlLeft(x-1, y, parent);
-                    //Console.WriteLine(")");
-                }
-
-                if(isBitSet(c, DOWN)){
-                    //Console.WriteLine("O (");
-                    crawlDown(x, y+1, parent);
-                    Console.WriteLine("down");
-                }
+    private bool isElement(int v){
+        return (v>0x3F);
     }
 
-    private void crawlLeft(int x, int y, int p){
+    private bool isNode(int v){
+        return (areBitsSet(v, sb(LEFT)|sb(UP)|sb(RIGHT)) ||
+            areBitsSet(v, sb(UP)|sb(RIGHT)|sb(DOWN))||
+            areBitsSet(v, sb(RIGHT)|sb(DOWN)|sb(LEFT))||
+            areBitsSet(v, sb(DOWN)|sb(LEFT)|sb(UP)));
+    }
 
-        if(y<0 || x<0)return;
+    private bool isEmpty(int v){
+        return (v==1<<EMPTY);
+    }
+
+    private int crawlUntilNodeOrElement(int x, int y, int dir){
+
+        if(y<0 || x<0 || x>=COLS || y>=ROWS)return -1;
         int id = y*COLS+x;
+        int v = connections[id];
 
-        if(x==0){
-            if(p>=0){
-                //if(!child[p].Contains(id)){
-                    
-                    if(!parent[id].Contains(p))
-                        parent[id].Add(p);
-                    if(!child[p].Contains(0))
-                        child[p].Add(0);
-                //}
-            }
-            return;
-        }
+        if(isEmpty(v))
+            return -1;
 
-        if(x%2!=0 && connections[id] != 1<<CONN){
-            printConnectionInConsole(connections[y*COLS+x]);
+        if(isNode(v)||isElement(v))
+            return id;
 
-            if(p>=0){
-                //if(!child[p].Contains(id)){
-                   
-                    
-                //}
-                if(!parent[id].Contains(p))
-                    parent[id].Add(p);
-                if(!child[p].Contains(id))
-                    child[p].Add(id);
-            }
+        if(isBitSet(v, LEFT) && dir != RIGHT)
+            return crawlUntilNodeOrElement(x-1, y, LEFT);
 
-            p = id;
-        }
-        //Console.WriteLine(connections[y*COLS+x]);
+        if(isBitSet(v, RIGHT) && dir != LEFT)
+            return crawlUntilNodeOrElement(x+1, y, RIGHT);
 
-        int c = connections[y*COLS+x];
-            if((isBitSet(c, RIGHT) && (x%2 == 0)) || (isBitSet(c, END) && (x%2 == 0))){
-                
-                /*if(isBitSet(c, LEFT)){
-                    //Console.WriteLine("A (");
-                    crawlLeft(x-1, y, parent);
-                    //Console.WriteLine(")");
-                }*/
+        if(isBitSet(v, UP) && dir != DOWN)
+            return crawlUntilNodeOrElement(x, y-1, UP);
+        
+        if(isBitSet(v, DOWN) && dir != UP)
+            return crawlUntilNodeOrElement(x, y+1, DOWN);  
 
+        if(isBitSet(v, CONN) && dir == LEFT)
+            return crawlUntilNodeOrElement(x-1, y, LEFT);  
 
-                /*if((isBitSet(c, UP) && isBitSet(c, DOWN)) ||//!!!!!
-                    (isBitSet(c, UP) && isBitSet(c, LEFT)) ||
-                    (isBitSet(c, LEFT) && isBitSet(c, DOWN))){*/
-                        //Console.WriteLine("O (");
-                        if(isBitSet(c, LEFT)){
-                            crawlLeft(x-1, y, p);
-                        }
-                        if(isBitSet(c, UP)){
-                            crawlUp(x, y-1, p);
-                        }
-                        if(isBitSet(c, DOWN)){
-                            crawlDown(x, y+1, p);
-                        }
-                        
-                        //Console.WriteLine(")");
-                    /*}*/
-                
-                
-            }else if ((x%2 != 0) && c == 1<<CONN){
-                crawlLeft(x - 1, y, p);
-            }else if ((x%2 != 0) && c != EMPTY){
-                //Console.WriteLine("A (");
-                crawlLeft(x - 1, y, p);
-                //Console.WriteLine(")");
-            }
+        if(isBitSet(v, CONN) && dir == RIGHT)
+            return crawlUntilNodeOrElement(x+1, y, RIGHT); 
+
+        return -1;
     }
 }
