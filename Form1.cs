@@ -168,10 +168,19 @@ public partial class Form1 : System.Windows.Forms.Form
             for(int x=1; x<COLS-1; x++){
                 int id = y*COLS+x;
                 
-                int crawlId = crawlUntilNodeOrElement(x+1,y, RIGHT);
+                //int crawlId = crawlUntilNodeOrElement(x+1, y, RIGHT, true);
 
-                Console.WriteLine("id: "+id +" crawlId:" +crawlId);
+                if(isElement(connections[id])){
 
+                    Console.WriteLine("checking id: " + id);
+                    Point? parallel = crawlUntilParallelFound(x, y);
+
+                    if(parallel.HasValue){
+                        Console.WriteLine("parallel pos: x" + parallel.Value.X + ", y" + parallel.Value.Y);
+                    }
+
+                    //Console.WriteLine("id: "+id +" crawlId:" +crawlId);
+                }
             }
         }
 
@@ -604,6 +613,10 @@ public partial class Form1 : System.Windows.Forms.Form
         return ((val & mask) == mask);
     }
 
+    private int getId(Point p){
+        return p.Y*COLS + p.X;
+    }
+
     private bool isElement(int v){
         return (v>0x3F);
     }
@@ -619,17 +632,20 @@ public partial class Form1 : System.Windows.Forms.Form
         return (v==1<<EMPTY);
     }
 
-    private int crawlUntilNodeOrElement(int x, int y, int dir){
+    private Point? crawlUntilNodeOrElement(int x, int y, int dir){
 
-        if(y<0 || x<0 || x>=COLS || y>=ROWS)return -1;
+        if(y<0 || x<0 || x>=COLS || y>=ROWS)return null;
         int id = y*COLS+x;
         int v = connections[id];
 
-        if(isEmpty(v))
-            return -1;
+        //Console.WriteLine("checking "+ x + ", " + y);
 
-        if(isNode(v)||isElement(v))
-            return id;
+        if(isEmpty(v))
+            return null;
+
+        if(isElement(v) || isNode(v))
+            return new Point(x,y);
+
 
         if(isBitSet(v, LEFT) && dir != RIGHT)
             return crawlUntilNodeOrElement(x-1, y, LEFT);
@@ -649,6 +665,74 @@ public partial class Form1 : System.Windows.Forms.Form
         if(isBitSet(v, CONN) && dir == RIGHT)
             return crawlUntilNodeOrElement(x+1, y, RIGHT); 
 
-        return -1;
+        return null;
+    }
+
+    private Point? crawlUntilParallelFound(int x, int y){
+
+        Point? [] node = new Point?[4];
+        node[0] = crawlUntilNodeOrElement(x+1, y, RIGHT);
+        Point? parallelElement, origin;
+
+        //Console.WriteLine("0");
+        if(node[0].HasValue){
+
+            node[1] = crawlUntilNodeOrElement(node[0].Value.X, node[0].Value.Y+1, DOWN);
+            //Console.WriteLine("1");
+
+            if(node[1].HasValue){
+                if(isElement(connections[getId(node[1].Value)])){//if element found instead of node
+                    parallelElement = node[1];
+                    //Console.WriteLine("1.1");
+                }
+                else{
+                    parallelElement = crawlUntilNodeOrElement(node[0].Value.X-1, node[0].Value.Y, LEFT);
+                    //Console.WriteLine("2");
+                }
+            }
+            else return null;
+
+            if(parallelElement.HasValue){
+                node[2] = crawlUntilNodeOrElement(parallelElement.Value.X-1, parallelElement.Value.Y, LEFT);
+                //Console.WriteLine("3");
+
+                if(node[2].HasValue){
+                    node[3] = crawlUntilNodeOrElement(node[2].Value.X, node[2].Value.Y-1, UP);
+                    //Console.WriteLine("4");
+
+                    if(node[3].HasValue){
+                        origin = crawlUntilNodeOrElement(node[3].Value.X+1, node[3].Value.Y, RIGHT);
+                    }else{
+                        origin = crawlUntilNodeOrElement(node[2].Value.X+1, node[2].Value.Y, RIGHT);//node 3 could be the last in loop
+                    }
+
+                    //Console.WriteLine("5");
+                    if(origin.HasValue){
+                        //Console.WriteLine("6");
+
+                        int elementCount = 0;
+                        foreach(Point? n in node){
+                            if(n.HasValue)
+                                if(isElement(connections[getId(n.Value)]))
+                                    elementCount++;
+                        }
+
+                        Console.WriteLine("elementCount="+elementCount);
+
+                        if(elementCount>1){
+                            return null;
+                        }
+
+                        if(origin.Value.X == x && origin.Value.Y == y){
+                            return parallelElement;
+                        }
+                    }
+                }
+            }   
+                
+        }
+
+        return null;
+
     }
 }
