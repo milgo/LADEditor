@@ -719,5 +719,40 @@ public partial class Form1 : System.Windows.Forms.Form
         }
         
     }
-    
+
+    private Point? crawlUntilNodeOrElement(int x, int y, int dir){
+
+        if(y<0 || x<0 || x>=COLS || y>=ROWS)return null;
+        int id = y*COLS+x;
+        int v = connections[id];
+
+        //Console.WriteLine("checking "+ x + ", " + y);
+
+        if(isEmpty(v))
+            return null;
+
+        if(isElement(v) || isNode(v))
+            return new Point(x,y);
+
+
+        if(isBitSet(v, LEFT) && dir != RIGHT)
+            return crawlUntilNodeOrElement(x-1, y, LEFT);
+
+        if(isBitSet(v, RIGHT) && dir != LEFT)
+            return crawlUntilNodeOrElement(x+1, y, RIGHT);
+
+        if(isBitSet(v, UP) && dir != DOWN)
+            return crawlUntilNodeOrElement(x, y-1, UP);
+        
+        if(isBitSet(v, DOWN) && dir != UP)
+            return crawlUntilNodeOrElement(x, y+1, DOWN);  
+
+        if(isBitSet(v, CONN) && dir == LEFT)
+            return crawlUntilNodeOrElement(x-1, y, LEFT);  
+
+        if(isBitSet(v, CONN) && dir == RIGHT)
+            return crawlUntilNodeOrElement(x+1, y, RIGHT); 
+
+        return null;    
+    }
 }
