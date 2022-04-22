@@ -14,6 +14,7 @@ public partial class Form1 : System.Windows.Forms.Form
 
     ToolStrip toolStrip;
     int [] connections;
+    int [] floodFillTable;
     int ladObjectToDrop = -1;
     Point mouseClickedPos;
 
@@ -127,7 +128,6 @@ public partial class Form1 : System.Windows.Forms.Form
         connections[0] |= 1<<0;
         connections[12] |= 1<<END;
         
-        
         dynamicTableLayoutPanel.CellPaint += tableLayoutPanel_CellPaint;
         dynamicTableLayoutPanel.MouseClick += tableLayout_MouseClick;
         this.Controls.Add(dynamicTableLayoutPanel);
@@ -161,27 +161,77 @@ public partial class Form1 : System.Windows.Forms.Form
 
     }
 
+    private void propareFloodFillFind(){
+        floodFillTable = new int[COLS*ROWS*3];
+        
+        for(int y=0; y<ROWS; y++){
+            for(int x=0; x<COLS; x++){
+                floodFillTable[y*3*COLS+x] = connections[y*COLS+x];
+                if(x%2==0 && isBitSet(connections[y*COLS+x], DOWN)){
+                    floodFillTable[(y*3+1)*COLS+x] = connections[y*COLS+x];
+                    floodFillTable[(y*3+2)*COLS+x] = connections[y*COLS+x];
+                }
+                else{
+                    floodFillTable[(y*3+1)*COLS+x] = 1;
+                    floodFillTable[(y*3+2)*COLS+x] = 1;
+                }
+
+            }
+        }
+
+        for(int y=0; y<ROWS*3; y++){
+            if(y%3>0)continue;
+            StringBuilder sb = new StringBuilder();
+            for(int x=0; x<COLS; x++){
+                if(floodFillTable[y*COLS+x]>1)
+                    sb.Append("X");
+                else
+                    sb.Append(".");
+            }
+            Console.WriteLine(sb.ToString());
+        }
+    }
+
     private void build_Click(object sender, EventArgs e){
         Console.WriteLine("build");
 
-        for(int y=0; y<ROWS; y++){
-            for(int x=1; x<COLS-1; x++){
+        propareFloodFillFind();
+        for(int y=0; y<ROWS*3; y++){
+            for(int x=0; x<COLS; x++){
                 int id = y*COLS+x;
                 
                 //int crawlId = crawlUntilNodeOrElement(x+1, y, RIGHT, true);
 
-                if(isElement(connections[id])){
+               if(floodFillTable[y*COLS+x] > 0x3F){//isElement
 
+                    Console.WriteLine("-------------------");
                     Console.WriteLine("checking id: " + id);
-                    Point? parallel = crawlUntilParallelFound(x, y);
+                    Console.WriteLine("-------------------");
+                    List<Point> list = new List<Point>();
+                    
+                    floodFillFind(x, y+1, list);
 
-                    if(parallel.HasValue){
-                        Console.WriteLine("parallel pos: x" + parallel.Value.X + ", y" + parallel.Value.Y);
+                    foreach(Point p in list){
+                        Console.WriteLine("x:"+p.X+", y:"+p.Y);
                     }
 
                     //Console.WriteLine("id: "+id +" crawlId:" +crawlId);
                 }
             }
+        }
+
+        for(int y=0; y<ROWS*3; y++){
+            if(y%3>0)continue;
+            StringBuilder sb = new StringBuilder();
+            for(int x=0; x<COLS; x++){
+                if(floodFillTable[y*COLS+x]>1)
+                    sb.Append("X");
+                else if(floodFillTable[y*COLS+x]==1)
+                    sb.Append(".");
+                else
+                    sb.Append(" ");
+            }
+            Console.WriteLine(sb.ToString());
         }
 
     }
@@ -608,6 +658,10 @@ public partial class Form1 : System.Windows.Forms.Form
         return ((val & 1<<bit) == 1<<bit);
     }
 
+    private bool isBitSet(Point p, int bit){
+        return ((connections[getId(p)] & 1<<bit) == 1<<bit);
+    }
+
     private bool areBitsSet(int val, int mask){
         //Console.WriteLine("mask: " + Convert.ToString(mask,2));
         return ((val & mask) == mask);
@@ -617,8 +671,16 @@ public partial class Form1 : System.Windows.Forms.Form
         return p.Y*COLS + p.X;
     }
 
+    private int getId(int x, int y){
+        return y*COLS + x;
+    }
+
     private bool isElement(int v){
         return (v>0x3F);
+    }
+
+    private bool isElement(Point p){
+        return isElement(connections[p.Y*COLS + p.X]);
     }
 
     private bool isNode(int v){
@@ -628,111 +690,34 @@ public partial class Form1 : System.Windows.Forms.Form
             areBitsSet(v, sb(DOWN)|sb(LEFT)|sb(UP)));
     }
 
+    private bool isNode(Point p){
+        return isNode(connections[p.Y*COLS + p.X]);
+    }
+
     private bool isEmpty(int v){
         return (v==1<<EMPTY);
     }
 
-    private Point? crawlUntilNodeOrElement(int x, int y, int dir){
+    private void floodFillFind(int x, int y, List<Point> list){
 
-        if(y<0 || x<0 || x>=COLS || y>=ROWS)return null;
-        int id = y*COLS+x;
-        int v = connections[id];
+        if(y<0 || x<0 || x>=COLS || y>=ROWS*3)return;
 
-        //Console.WriteLine("checking "+ x + ", " + y);
+        //Point p = new Point(x, y);
+        //Console.WriteLine("checking id:"+getId(p));
 
-        if(isEmpty(v))
-            return null;
-
-        if(isElement(v) || isNode(v))
-            return new Point(x,y);
-
-
-        if(isBitSet(v, LEFT) && dir != RIGHT)
-            return crawlUntilNodeOrElement(x-1, y, LEFT);
-
-        if(isBitSet(v, RIGHT) && dir != LEFT)
-            return crawlUntilNodeOrElement(x+1, y, RIGHT);
-
-        if(isBitSet(v, UP) && dir != DOWN)
-            return crawlUntilNodeOrElement(x, y-1, UP);
-        
-        if(isBitSet(v, DOWN) && dir != UP)
-            return crawlUntilNodeOrElement(x, y+1, DOWN);  
-
-        if(isBitSet(v, CONN) && dir == LEFT)
-            return crawlUntilNodeOrElement(x-1, y, LEFT);  
-
-        if(isBitSet(v, CONN) && dir == RIGHT)
-            return crawlUntilNodeOrElement(x+1, y, RIGHT); 
-
-        return null;
-    }
-
-    private Point? crawlUntilParallelFound(int x, int y){
-
-        Point? [] node = new Point?[4];
-        node[0] = crawlUntilNodeOrElement(x+1, y, RIGHT);
-        Point? parallelElement, origin;
-
-        //Console.WriteLine("0");
-        if(node[0].HasValue){
-
-            node[1] = crawlUntilNodeOrElement(node[0].Value.X, node[0].Value.Y+1, DOWN);
-            //Console.WriteLine("1");
-
-            if(node[1].HasValue){
-                if(isElement(connections[getId(node[1].Value)])){//if element found instead of node
-                    parallelElement = node[1];
-                    //Console.WriteLine("1.1");
-                }
-                else{
-                    parallelElement = crawlUntilNodeOrElement(node[0].Value.X-1, node[0].Value.Y, LEFT);
-                    //Console.WriteLine("2");
-                }
-            }
-            else return null;
-
-            if(parallelElement.HasValue){
-                node[2] = crawlUntilNodeOrElement(parallelElement.Value.X-1, parallelElement.Value.Y, LEFT);
-                //Console.WriteLine("3");
-
-                if(node[2].HasValue){
-                    node[3] = crawlUntilNodeOrElement(node[2].Value.X, node[2].Value.Y-1, UP);
-                    //Console.WriteLine("4");
-
-                    if(node[3].HasValue){
-                        origin = crawlUntilNodeOrElement(node[3].Value.X+1, node[3].Value.Y, RIGHT);
-                    }else{
-                        origin = crawlUntilNodeOrElement(node[2].Value.X+1, node[2].Value.Y, RIGHT);//node 3 could be the last in loop
-                    }
-
-                    //Console.WriteLine("5");
-                    if(origin.HasValue){
-                        //Console.WriteLine("6");
-
-                        int elementCount = 0;
-                        foreach(Point? n in node){
-                            if(n.HasValue)
-                                if(isElement(connections[getId(n.Value)]))
-                                    elementCount++;
-                        }
-
-                        Console.WriteLine("elementCount="+elementCount);
-
-                        if(elementCount>1){
-                            return null;
-                        }
-
-                        if(origin.Value.X == x && origin.Value.Y == y){
-                            return parallelElement;
-                        }
-                    }
-                }
-            }   
-                
+        if(floodFillTable[y*COLS+x] > 0x3F){
+            //Console.WriteLine("found x:"+x+", y:"+y);
+            list.Add(new Point(x, y/3));
+            //return;
+        }        
+        else if(/*floodFillTable[y*COLS+x] == 0 || */floodFillTable[y*COLS+x] == 1){
+            floodFillTable[y*COLS+x] = 0;
+            floodFillFind(x+1, y, list);
+            floodFillFind(x-1, y, list);
+            floodFillFind(x, y+1, list);
+            //floodFillFind(x, y-1, list);
         }
-
-        return null;
-
+        
     }
+    
 }
