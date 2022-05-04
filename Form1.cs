@@ -40,6 +40,12 @@ public partial class Form1 : System.Windows.Forms.Form
     {
         InitializeComponent();
 
+        /*FileStream fs = new FileStream("out.txt", FileMode.Create);
+        var sw = new StreamWriter(fs);
+        sw.AutoFlush = true;
+        Console.SetOut(sw);
+        Console.SetError(sw);*/
+
         toolStrip = new ToolStrip();
         toolStrip.AutoSize = false;
         toolStrip.Size = new Size(32,32);
@@ -131,7 +137,7 @@ public partial class Form1 : System.Windows.Forms.Form
         }
 
         connections[0] |= 1<<0;
-        connections[12] |= 1<<END;
+        //connections[12] |= 1<<END;
         
         dynamicTableLayoutPanel.CellPaint += tableLayoutPanel_CellPaint;
         dynamicTableLayoutPanel.MouseClick += tableLayout_MouseClick;
@@ -183,8 +189,10 @@ public partial class Form1 : System.Windows.Forms.Form
 
             }
         }
+    }
 
-        /*for(int y=0; y<ROWS*3; y++){
+    private void printFloodFillTable(){
+        for(int y=0; y<ROWS*3; y++){
             if(y%3>0)continue;
             StringBuilder sb = new StringBuilder();
             for(int x=0; x<COLS; x++){
@@ -194,7 +202,23 @@ public partial class Form1 : System.Windows.Forms.Form
                     sb.Append(".");
             }
             Console.WriteLine(sb.ToString());
-        }*/
+        }
+    }
+
+    private void printBuildTable(){
+        for(int y=0; y<ROWS; y++){
+            //if(y%3>0)continue;
+            StringBuilder sb = new StringBuilder();
+            for(int x=0; x<COLS; x++){
+                if(buildTable[y*COLS+x]>1)
+                    sb.Append(","+buildTable[y*COLS+x]);
+                else if(buildTable[y*COLS+x]==1)
+                    sb.Append(".");
+                else
+                    sb.Append(" ");
+            }
+            Console.WriteLine(sb.ToString());
+        }
     }
 
     private void build_Click(object sender, EventArgs e){
@@ -210,7 +234,20 @@ public partial class Form1 : System.Windows.Forms.Form
 
         bool serialFound = true;
         bool parallelFound = true;
-        while(serialFound && parallelFound){
+        while(/*serialFound && parallelFound*/true){
+            //Console.WriteLine("///");
+            int elementCount = 0;
+            for(int y=0; y<ROWS; y++){
+                for(int x=0; x<COLS; x++){
+                    if(buildTable[y*COLS+x] > 0x3F)
+                        elementCount++;
+                }
+            }
+
+//Console.WriteLine("///"+elementCount);
+
+            if(elementCount<=1)
+                break;
 
             serialFound = true;
 
@@ -222,17 +259,27 @@ public partial class Form1 : System.Windows.Forms.Form
                     for(int x=0; x<COLS; x++){
                         int id = y*COLS+x;
                         if(buildTable[y*COLS+x] > 0x3F){
+                            //Console.WriteLine(".");
                             Point? p = crawlUntilElement(x+1, y, RIGHT);
                             if(p.HasValue){
                                 int fid = p.Value.Y*COLS +p.Value.X;
 
-                                if(String.IsNullOrEmpty(commTab[id])){
-                                    commTab[fid] = new String(" A " + fid + " A " + id);
+                                //Console.WriteLine("serial found");
+
+                                if(String.IsNullOrEmpty(commTab[fid])){
+                                    if(String.IsNullOrEmpty(commTab[id]))
+                                        commTab[fid] = new String(" A " + fid + " A " + id);
+                                    else
+                                        commTab[fid] = new String(" A " + fid + " A (" + commTab[id] + ")");
                                 }else{
-                                    commTab[fid] = new String(commTab[id] + " A " + fid);
+                                    if(String.IsNullOrEmpty(commTab[id]))
+                                        commTab[fid] = new String(" A " + id + " A (" + commTab[fid] +")");
+                                    else
+                                        commTab[fid] = new String(" A ( " +commTab[id] + ") A (" + commTab[fid] +")");
                                 }
 
                                 //commTab[fid] = new String(" A " + commTab[fid] + " A " + id);
+                                Console.WriteLine(id + "found");
                                 buildTable[id] = 1<<CONN;
                                 serialFound = true;
                             }
@@ -241,9 +288,12 @@ public partial class Form1 : System.Windows.Forms.Form
                     }
                 }
             }
+            //Console.WriteLine("after serial find");
+        printBuildTable();
 
             parallelFound = true;
             while(parallelFound){
+                
                 parallelFound = false;
                 propareFloodFillFind();
                 for(int y=0; y<ROWS*3; y++){
@@ -252,33 +302,39 @@ public partial class Form1 : System.Windows.Forms.Form
                         int id = (y/3)*COLS + x;
 
                         if(floodFillTable[fftid] > 0x3F){//isElement
-
-                            /*Console.WriteLine("-------------------");
-                            Console.WriteLine("checking id: " + id);
-                            Console.WriteLine("-------------------");*/
                             List<Point> list = new List<Point>();
-                            
-                            floodFillFind(x, y+1, list);
-
-                            if(list.Count > 1)continue;
+                            Console.WriteLine("for "+id );
+                            floodFillFind(x, y+1, ref list);
+                            Console.WriteLine("list.Count="+list.Count);
+                            if(list.Count > 1){
+                                Console.WriteLine(id + " continue" );
+                                continue;
+                            }
                             
                             if(list.Count == 1)parallelFound = true;
 
                             foreach(Point p in list){
-                                //Console.WriteLine("x:"+p.X+", y:"+p.Y);
-                                //add to string and cut wire
                                 int fid = p.Y*COLS+p.X;
 
                                 if(String.IsNullOrEmpty(commTab[id])){
-                                    commTab[id] = new String(" O " + id + " O " + fid);
-                                    Console.WriteLine(" 1 :"+commTab[id] );
+                                    
+
+                                    if(String.IsNullOrEmpty(commTab[fid]))
+                                        commTab[id] = new String(" O " + id + " O " + fid);
+                                    else
+                                        commTab[id] = new String(" O " + id + " O (" + commTab[fid] + ") ");
                                 }else{
-                                    commTab[id] = new String(commTab[id] + " O " + fid);
-                                    Console.WriteLine(" 2 :"+commTab[id] );
+                                        if(String.IsNullOrEmpty(commTab[fid]))
+                                            commTab[id] = new String(" O " + commTab[id] + " O " + fid);
+                                        else
+                                            commTab[id] = new String(" O (" + commTab[id] + ") O (" + commTab[fid] + ") ");
                                 }
 
                                 buildTable[fid] = 1<<EMPTY;
                                 floodFillTable[p.Y*3*COLS+p.X] = 1<<EMPTY;
+                                deattachUntilNode(p.X+1, p.Y, RIGHT);
+                                deattachUntilNode(p.X-1, p.Y, LEFT);
+                                printFloodFillTable();
                             }
 
                             //Console.WriteLine("id: "+id +" crawlId:" +crawlId);
@@ -286,9 +342,8 @@ public partial class Form1 : System.Windows.Forms.Form
                     }
                 }
             }
-        }
 
-        //dynamicTableLayoutPanel.Invalidate();
+        printFloodFillTable();
 
         for(int y=0; y<ROWS; y++){
             for(int x=0; x<COLS; x++){
@@ -297,6 +352,14 @@ public partial class Form1 : System.Windows.Forms.Form
                     Console.WriteLine(id + ": " + commTab[id]);
             }
         }
+
+        //Console.WriteLine("after parallel find");
+        //printBuildTable();
+        }
+
+        //dynamicTableLayoutPanel.Invalidate();
+
+
 
         /*propareFloodFillFind();
         for(int y=0; y<ROWS*3; y++){
@@ -762,7 +825,7 @@ public partial class Form1 : System.Windows.Forms.Form
     }
 
     private bool isBitSet(Point p, int bit){
-        return ((connections[getId(p)] & 1<<bit) == 1<<bit);
+        return ((buildTable[getId(p)] & 1<<bit) == 1<<bit);
     }
 
     private bool areBitsSet(int val, int mask){
@@ -783,7 +846,7 @@ public partial class Form1 : System.Windows.Forms.Form
     }
 
     private bool isElement(Point p){
-        return isElement(connections[p.Y*COLS + p.X]);
+        return isElement(buildTable[p.Y*COLS + p.X]);
     }
 
     private bool isNode(int v){
@@ -794,30 +857,29 @@ public partial class Form1 : System.Windows.Forms.Form
     }
 
     private bool isNode(Point p){
-        return isNode(connections[p.Y*COLS + p.X]);
+        return isNode(buildTable[p.Y*COLS + p.X]);
     }
 
     private bool isEmpty(int v){
         return (v==1<<EMPTY);
     }
 
-    private void floodFillFind(int x, int y, List<Point> list){
+    private void floodFillFind(int x, int y, ref List<Point> list){
 
         if(y<0 || x<0 || x>=COLS || y>=ROWS*3)return;
 
-        //Point p = new Point(x, y);
-        //Console.WriteLine("checking id:"+getId(p));
+        //Console.WriteLine("checking x:"+x+", y:"+y);
 
         if(floodFillTable[y*COLS+x] > 0x3F){
-            //Console.WriteLine("found x:"+x+", y:"+y);
+            Console.WriteLine("found x:"+x+", y:"+y);
             list.Add(new Point(x, y/3));
             //return;
         }        
-        else if(/*floodFillTable[y*COLS+x] == 0 || */floodFillTable[y*COLS+x] == 1){
+        else if(floodFillTable[y*COLS+x] == 1){
             floodFillTable[y*COLS+x] = 0;
-            floodFillFind(x+1, y, list);
-            floodFillFind(x-1, y, list);
-            floodFillFind(x, y+1, list);
+            floodFillFind(x+1, y, ref list);
+            floodFillFind(x-1, y, ref list);
+            floodFillFind(x, y+1, ref list);
             //floodFillFind(x, y-1, list);
         }
         
@@ -827,12 +889,14 @@ public partial class Form1 : System.Windows.Forms.Form
 
         if(y<0 || x<0 || x>=COLS || y>=ROWS)return null;
         int id = y*COLS+x;
-        int v = connections[id];
+        int v = buildTable[id];
 
         //Console.WriteLine("checking "+ x + ", " + y);
 
-        if(isEmpty(v) || isNode(v))
+        if(isEmpty(v) || isNode(v)){
+            Console.WriteLine("node or empty");
             return null;
+        }
 
         if(isElement(v) )
             return new Point(x,y);
@@ -857,5 +921,59 @@ public partial class Form1 : System.Windows.Forms.Form
             return crawlUntilElement(x+1, y, RIGHT); 
 
         return null;    
+    }
+
+    private void deattachUntilNode(int x, int y, int dir){
+
+        if(y<0 || x<0 || x>=COLS || y>=ROWS)return;
+        int id = y*COLS+x;
+        int v = buildTable[id];
+
+        
+
+       if(isElement(v) || isEmpty(v))
+            return;
+
+        if( isNode(v) ){
+            if(isBitSet(v, RIGHT) && dir == LEFT){
+                buildTable[id] &= ~(1<<RIGHT);
+                Console.WriteLine("deattaching "+ x + ", " + y);
+            }
+            else if(isBitSet(v, DOWN) && dir == UP){
+                buildTable[id] &= ~(1<<DOWN);
+                Console.WriteLine("deattaching "+ x + ", " + y);
+            }
+            else if(isBitSet(v, LEFT) && dir == RIGHT){
+                buildTable[id] &= ~(1<<LEFT);
+                Console.WriteLine("deattaching "+ x + ", " + y);
+            }
+            else if(isBitSet(v, UP) && dir == DOWN){
+                buildTable[id] &= ~(1<<UP);
+                Console.WriteLine("deattaching "+ x + ", " + y);
+            }
+            return;
+        }
+
+ 
+
+        buildTable[id] = EMPTY;
+
+        if(isBitSet(v, LEFT) && dir != RIGHT)
+            deattachUntilNode(x-1, y, LEFT);
+
+        else if(isBitSet(v, RIGHT) && dir != LEFT)
+            deattachUntilNode(x+1, y, RIGHT);
+
+        else if(isBitSet(v, UP) && dir != DOWN)
+            deattachUntilNode(x, y-1, UP);
+        
+        else if(isBitSet(v, DOWN) && dir != UP)
+            deattachUntilNode(x, y+1, DOWN);  
+
+        else if(isBitSet(v, CONN) && dir == LEFT)
+            deattachUntilNode(x-1, y, LEFT);  
+
+        else if(isBitSet(v, CONN) && dir == RIGHT)
+            deattachUntilNode(x+1, y, RIGHT); 
     }
 }
