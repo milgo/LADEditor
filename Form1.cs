@@ -172,7 +172,7 @@ public partial class Form1 : System.Windows.Forms.Form
 
     }
 
-    private void propareFloodFillFind(){
+    private void prepareFloodFillFind(){
         floodFillTable = new int[COLS*ROWS*3];
         
         for(int y=0; y<ROWS; y++){
@@ -295,7 +295,8 @@ public partial class Form1 : System.Windows.Forms.Form
             while(parallelFound){
                 
                 parallelFound = false;
-                propareFloodFillFind();
+
+                prepareFloodFillFind();
                 for(int y=0; y<ROWS*3; y++){
                     for(int x=0; x<COLS; x++){
                         int fftid = y*COLS+x;
@@ -304,7 +305,7 @@ public partial class Form1 : System.Windows.Forms.Form
                         if(floodFillTable[fftid] > 0x3F){//isElement
                             List<Point> list = new List<Point>();
                             Console.WriteLine("for "+id );
-                            floodFillFind(x, y+1, ref list);
+                            floodFillFind(x, y+1, x, y, ref list, false);
                             Console.WriteLine("list.Count="+list.Count);
                             if(list.Count > 1){
                                 Console.WriteLine(id + " continue" );
@@ -335,9 +336,11 @@ public partial class Form1 : System.Windows.Forms.Form
                                 deattachUntilNode(p.X+1, p.Y, RIGHT);
                                 deattachUntilNode(p.X-1, p.Y, LEFT);
                                 printFloodFillTable();
+                                //prepareFloodFillFind();
                             }
 
                             //Console.WriteLine("id: "+id +" crawlId:" +crawlId);
+                            
                         }
                     }
                 }
@@ -360,9 +363,8 @@ public partial class Form1 : System.Windows.Forms.Form
         //dynamicTableLayoutPanel.Invalidate();
 
 
-
-        /*propareFloodFillFind();
-        for(int y=0; y<ROWS*3; y++){
+        prepareFloodFillFind();
+        /*for(int y=0; y<ROWS*3; y++){
             for(int x=0; x<COLS; x++){
                 int id = y*COLS+x;
                 
@@ -864,23 +866,25 @@ public partial class Form1 : System.Windows.Forms.Form
         return (v==1<<EMPTY);
     }
 
-    private void floodFillFind(int x, int y, ref List<Point> list){
+    private void floodFillFind(int x, int y, int xp, int yp, ref List<Point> list, bool up /*prevent from adding elements from same level*/){
 
-        if(y<0 || x<0 || x>=COLS || y>=ROWS*3)return;
+        if(y<0 || x<0 || x>=COLS || y>=ROWS*3 || (xp==x && yp==y) )return;
 
         //Console.WriteLine("checking x:"+x+", y:"+y);
 
-        if(floodFillTable[y*COLS+x] > 0x3F){
-            Console.WriteLine("found x:"+x+", y:"+y);
-            list.Add(new Point(x, y/3));
+        if(floodFillTable[y*COLS+x] > 0x3F && !up){
+            Console.WriteLine("found x:"+x+", y:"+y/3);
+            Point p = new Point(x, y/3);
+            if(!list.Contains(p))
+                list.Add(p);
             //return;
         }        
         else if(floodFillTable[y*COLS+x] == 1){
             floodFillTable[y*COLS+x] = 0;
-            floodFillFind(x+1, y, ref list);
-            floodFillFind(x-1, y, ref list);
-            floodFillFind(x, y+1, ref list);
-            //floodFillFind(x, y-1, list);
+            floodFillFind(x-1, y, xp, yp, ref list, false);
+            floodFillFind(x+1, y, xp, yp, ref list, false);
+            floodFillFind(x, y+1, xp, yp, ref list, false);
+            floodFillFind(x, y-1, xp, yp, ref list, true);
         }
         
     }
@@ -956,7 +960,7 @@ public partial class Form1 : System.Windows.Forms.Form
 
  
 
-        buildTable[id] = EMPTY;
+        buildTable[id] = 1<<EMPTY;
 
         if(isBitSet(v, LEFT) && dir != RIGHT)
             deattachUntilNode(x-1, y, LEFT);
