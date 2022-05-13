@@ -221,6 +221,29 @@ public partial class Form1 : System.Windows.Forms.Form
         }
     }
 
+    /*private int checkBuildTable(){
+        bool res = false;
+        crawlCheckDelegate = checkIfElementNullIfNodeOrEmpty;
+        for(int y=0; y<ROWS; y++){
+            for(int x=0; x<COLS; x++){
+                int id = y*COLS+x;
+               Point p = new Point(x,y);
+               if(isElement(p)){
+                    Point? l = crawlUntilCheckFound(x-1, y, LEFT, crawlCheckDelegate);
+                    Point? r = crawlUntilCheckFound(x+1, y, RIGHT, crawlCheckDelegate);
+                    if(l.HasValue && r.HasValue)
+                        res = true;
+                    else
+                        Console.WriteLine("element " + id + " is not connected");
+               }
+               else if(isNode(p)){
+                   Point? r = crawlUntilCheckFound(x+1, y, RIGHT, crawlCheckDelegate);
+               }
+                
+            }
+        }
+    }*/
+
     private void build_Click(object sender, EventArgs e){
         Console.WriteLine("build");
 
@@ -234,6 +257,9 @@ public partial class Form1 : System.Windows.Forms.Form
 
         bool serialFound = true;
         bool parallelFound = true;
+
+        crawlCheckDelegate = checkIfElementNullIfNodeOrEmpty;
+
         while(/*serialFound && parallelFound*/true){
             //Console.WriteLine("///");
             int elementCount = 0;
@@ -243,8 +269,6 @@ public partial class Form1 : System.Windows.Forms.Form
                         elementCount++;
                 }
             }
-
-//Console.WriteLine("///"+elementCount);
 
             if(elementCount<=1)
                 break;
@@ -260,7 +284,7 @@ public partial class Form1 : System.Windows.Forms.Form
                         int id = y*COLS+x;
                         if(buildTable[y*COLS+x] > 0x3F){
                             //Console.WriteLine(".");
-                            Point? p = crawlUntilElement(x+1, y, RIGHT);
+                            Point? p = crawlUntilCheckFound(x+1, y, RIGHT, crawlCheckDelegate);
                             if(p.HasValue){
                                 int fid = p.Value.Y*COLS +p.Value.X;
 
@@ -346,62 +370,20 @@ public partial class Form1 : System.Windows.Forms.Form
                 }
             }
 
-        printFloodFillTable();
+            printFloodFillTable();
 
-        for(int y=0; y<ROWS; y++){
-            for(int x=0; x<COLS; x++){
-                int id = y*COLS+x;
-                if(buildTable[id] > 0x3F)
-                    Console.WriteLine(id + ": " + commTab[id]);
-            }
-        }
-
-        //Console.WriteLine("after parallel find");
-        //printBuildTable();
-        }
-
-        //dynamicTableLayoutPanel.Invalidate();
-
-
-        prepareFloodFillFind();
-        /*for(int y=0; y<ROWS*3; y++){
-            for(int x=0; x<COLS; x++){
-                int id = y*COLS+x;
-                
-                //int crawlId = crawlUntilNodeOrElement(x+1, y, RIGHT, true);
-
-               if(floodFillTable[y*COLS+x] > 0x3F){//isElement
-
-                    Console.WriteLine("-------------------");
-                    Console.WriteLine("checking id: " + id);
-                    Console.WriteLine("-------------------");
-                    List<Point> list = new List<Point>();
-                    
-                    floodFillFind(x, y+1, list);
-
-                    foreach(Point p in list){
-                        Console.WriteLine("x:"+p.X+", y:"+p.Y);
-                    }
-
-                    //Console.WriteLine("id: "+id +" crawlId:" +crawlId);
+            for(int y=0; y<ROWS; y++){
+                for(int x=0; x<COLS; x++){
+                    int id = y*COLS+x;
+                    if(buildTable[id] > 0x3F)
+                        Console.WriteLine(id + ": " + commTab[id]);
                 }
             }
         }
 
-        for(int y=0; y<ROWS*3; y++){
-            if(y%3>0)continue;
-            StringBuilder sb = new StringBuilder();
-            for(int x=0; x<COLS; x++){
-                if(floodFillTable[y*COLS+x]>1)
-                    sb.Append("X");
-                else if(floodFillTable[y*COLS+x]==1)
-                    sb.Append(".");
-                else
-                    sb.Append(" ");
-            }
-            Console.WriteLine(sb.ToString());
-        }*/
 
+
+        prepareFloodFillFind();
     }
 
     private void toolStripMenuItem_Click(object sender, EventArgs e){
@@ -889,7 +871,16 @@ public partial class Form1 : System.Windows.Forms.Form
         
     }
 
-    private Point? crawlUntilElement(int x, int y, int dir){
+    public delegate int CrawlCheckDelegate(int val);
+    CrawlCheckDelegate crawlCheckDelegate;
+
+    private int checkIfElementNullIfNodeOrEmpty(int val){
+        if(isElement(val))return 0;
+        else if(isNode(val)||isEmpty(val)) return -1;
+        return 1;
+    }
+
+    private Point? crawlUntilCheckFound(int x, int y, int dir, CrawlCheckDelegate check){
 
         if(y<0 || x<0 || x>=COLS || y>=ROWS)return null;
         int id = y*COLS+x;
@@ -897,32 +888,36 @@ public partial class Form1 : System.Windows.Forms.Form
 
         //Console.WriteLine("checking "+ x + ", " + y);
 
-        if(isEmpty(v) || isNode(v)){
+        /*if(isEmpty(v) || isNode(v)){
             Console.WriteLine("node or empty");
+            return null;
+        }*/
+
+        int checkRes = check(v);
+        if(checkRes == 0)
+            return new Point(x,y);
+        else if(checkRes == -1){
             return null;
         }
 
-        if(isElement(v) )
-            return new Point(x,y);
-
 
         if(isBitSet(v, LEFT) && dir != RIGHT)
-            return crawlUntilElement(x-1, y, LEFT);
+            return crawlUntilCheckFound(x-1, y, LEFT, check);
 
         if(isBitSet(v, RIGHT) && dir != LEFT)
-            return crawlUntilElement(x+1, y, RIGHT);
+            return crawlUntilCheckFound(x+1, y, RIGHT, check);
 
         if(isBitSet(v, UP) && dir != DOWN)
-            return crawlUntilElement(x, y-1, UP);
+            return crawlUntilCheckFound(x, y-1, UP, check);
         
         if(isBitSet(v, DOWN) && dir != UP)
-            return crawlUntilElement(x, y+1, DOWN);  
+            return crawlUntilCheckFound(x, y+1, DOWN, check);  
 
         if(isBitSet(v, CONN) && dir == LEFT)
-            return crawlUntilElement(x-1, y, LEFT);  
+            return crawlUntilCheckFound(x-1, y, LEFT, check);  
 
         if(isBitSet(v, CONN) && dir == RIGHT)
-            return crawlUntilElement(x+1, y, RIGHT); 
+            return crawlUntilCheckFound(x+1, y, RIGHT, check); 
 
         return null;    
     }
