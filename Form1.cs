@@ -221,28 +221,48 @@ public partial class Form1 : System.Windows.Forms.Form
         }
     }
 
-    /*private int checkBuildTable(){
+    private void checkBuildTableFoShortCircuit(){
         bool res = false;
-        crawlCheckDelegate = checkIfElementNullIfNodeOrEmpty;
+        Console.WriteLine("VVVVVVVVVVVVVVVV");
+        //crawlCheckDelegate = checkIfNodeNullIfEmpty;
         for(int y=0; y<ROWS; y++){
             for(int x=0; x<COLS; x++){
                 int id = y*COLS+x;
-               Point p = new Point(x,y);
-               if(isElement(p)){
-                    Point? l = crawlUntilCheckFound(x-1, y, LEFT, crawlCheckDelegate);
-                    Point? r = crawlUntilCheckFound(x+1, y, RIGHT, crawlCheckDelegate);
-                    if(l.HasValue && r.HasValue)
-                        res = true;
-                    else
-                        Console.WriteLine("element " + id + " is not connected");
-               }
-               else if(isNode(p)){
-                   Point? r = crawlUntilCheckFound(x+1, y, RIGHT, crawlCheckDelegate);
-               }
-                
+                int val = buildTable[id];
+                if(isNode(val)){
+                    List<int> elementsOnWay = new List<int>();
+                    Console.Write(id +": ");
+
+                    CrawlCheckDelegate ccd = delegate(int fid, int v){
+                        if(fid == id)return 1;
+                        if(isElement(v)||isNode(v))elementsOnWay.Add(fid);
+                        if(isNode(v))return 0;
+                        return 1;
+                    };
+
+                    crawlUntilCheckFound(x, y, RIGHT,  false, ccd);
+
+                    //jak na podstawie tej listy sprawdzic, ze jest zwarcie?
+
+                    //Checking for shortcircuits
+                    /*for(int i=0; i<elementsOnWay.Count; i++){
+                        for(int j=0; j<elementsOnWay.Count; j++){
+                            if(i<>j && elementsOnWay[i]==elementsOnWay[j]){
+                                return new Line();
+                            }
+                        }
+                    }*/
+
+                    foreach(int i in elementsOnWay){
+                        Console.Write(i +",");
+                    }
+                    Console.WriteLine("");
+
+                }
             }
         }
-    }*/
+        Console.WriteLine("^^^^^^^^^^^^^^^");
+    }
 
     private void build_Click(object sender, EventArgs e){
         Console.WriteLine("build");
@@ -275,6 +295,8 @@ public partial class Form1 : System.Windows.Forms.Form
 
             serialFound = true;
 
+            checkBuildTableFoShortCircuit();
+
             while(serialFound){
 
                 serialFound = false;
@@ -284,7 +306,7 @@ public partial class Form1 : System.Windows.Forms.Form
                         int id = y*COLS+x;
                         if(buildTable[y*COLS+x] > 0x3F){
                             //Console.WriteLine(".");
-                            Point? p = crawlUntilCheckFound(x+1, y, RIGHT, crawlCheckDelegate);
+                            Point? p = crawlUntilCheckFound(x+1, y, RIGHT, true, crawlCheckDelegate);
                             if(p.HasValue){
                                 int fid = p.Value.Y*COLS +p.Value.X;
 
@@ -342,8 +364,6 @@ public partial class Form1 : System.Windows.Forms.Form
                                 int fid = p.Y*COLS+p.X;
 
                                 if(String.IsNullOrEmpty(commTab[id])){
-                                    
-
                                     if(String.IsNullOrEmpty(commTab[fid]))
                                         commTab[id] = new String(" O " + id + " O " + fid);
                                     else
@@ -368,6 +388,8 @@ public partial class Form1 : System.Windows.Forms.Form
                         }
                     }
                 }
+
+                //check for short ciccuit
             }
 
             printFloodFillTable();
@@ -871,53 +893,71 @@ public partial class Form1 : System.Windows.Forms.Form
         
     }
 
-    public delegate int CrawlCheckDelegate(int val);
+    public delegate int CrawlCheckDelegate(int id, int val);
     CrawlCheckDelegate crawlCheckDelegate;
 
-    private int checkIfElementNullIfNodeOrEmpty(int val){
+    private int checkIfElementNullIfNodeOrEmpty(int id, int val){
         if(isElement(val))return 0;
         else if(isNode(val)||isEmpty(val)) return -1;
         return 1;
     }
 
-    private Point? crawlUntilCheckFound(int x, int y, int dir, CrawlCheckDelegate check){
+    private int checkIfNodeNullIfEmpty(int id, int val){
+        if(isNode(val))return 0;
+        else if(isEmpty(val)) return -1;
+        return 1;
+    }
+
+    private Point? crawlUntilCheckFound(int x, int y, int dir, bool singlePath, CrawlCheckDelegate check){
 
         if(y<0 || x<0 || x>=COLS || y>=ROWS)return null;
         int id = y*COLS+x;
         int v = buildTable[id];
+        Point? res;
 
-        //Console.WriteLine("checking "+ x + ", " + y);
-
-        /*if(isEmpty(v) || isNode(v)){
-            Console.WriteLine("node or empty");
-            return null;
-        }*/
-
-        int checkRes = check(v);
-        if(checkRes == 0)
-            return new Point(x,y);
-        else if(checkRes == -1){
-            return null;
+        switch(check(id, v)){
+            case -1: return null; //stop without result
+            case 0: return new Point (x,y); break; //stop with result
+            case 1: {//skip and continue searching
+                if(isElement(v)){
+                    if(dir == LEFT)
+                        return crawlUntilCheckFound(x-1, y, LEFT, singlePath, check);
+                    if(dir == RIGHT)
+                        return crawlUntilCheckFound(x+1, y, RIGHT, singlePath, check);
+                }
+            }
+            break;
         }
 
+        if(isBitSet(v, LEFT) && dir != RIGHT){
+            res = crawlUntilCheckFound(x-1, y, LEFT, singlePath, check);
+            if(singlePath)return res;
+        }
 
-        if(isBitSet(v, LEFT) && dir != RIGHT)
-            return crawlUntilCheckFound(x-1, y, LEFT, check);
+        if(isBitSet(v, RIGHT) && dir != LEFT){
+            res = crawlUntilCheckFound(x+1, y, RIGHT, singlePath, check);
+            if(singlePath)return res;
+        }
 
-        if(isBitSet(v, RIGHT) && dir != LEFT)
-            return crawlUntilCheckFound(x+1, y, RIGHT, check);
-
-        if(isBitSet(v, UP) && dir != DOWN)
-            return crawlUntilCheckFound(x, y-1, UP, check);
+        if(isBitSet(v, UP) && dir != DOWN){
+            res = crawlUntilCheckFound(x, y-1, UP, singlePath, check);
+            if(singlePath)return res;
+        }
         
-        if(isBitSet(v, DOWN) && dir != UP)
-            return crawlUntilCheckFound(x, y+1, DOWN, check);  
+        if(isBitSet(v, DOWN) && dir != UP){
+            res = crawlUntilCheckFound(x, y+1, DOWN, singlePath, check);
+            if(singlePath)return res; 
+        }
 
-        if(isBitSet(v, CONN) && dir == LEFT)
-            return crawlUntilCheckFound(x-1, y, LEFT, check);  
+        if(isBitSet(v, CONN) && dir == LEFT){
+            res = crawlUntilCheckFound(x-1, y, LEFT, singlePath, check); 
+            if(singlePath)return res;
+        }
 
-        if(isBitSet(v, CONN) && dir == RIGHT)
-            return crawlUntilCheckFound(x+1, y, RIGHT, check); 
+        if(isBitSet(v, CONN) && dir == RIGHT){
+            res = crawlUntilCheckFound(x+1, y, RIGHT, singlePath, check);
+            if(singlePath)return res;
+        }
 
         return null;    
     }
